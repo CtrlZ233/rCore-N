@@ -15,6 +15,7 @@ KERNEL_BIN_LRV := BUILD_PATH + "rcore-n.bin"
 
 clean:
     cargo clean
+    cd ../unfi-sche && cargo clean
     cd ../user && make clean && cd -
 
 unfi-sche:
@@ -26,7 +27,7 @@ user:
 user_lrv:
     cd ../user && make build_lrv
 
-build: unfi-sche user 
+build: user unfi-sche 
     cp src/linker-qemu.ld src/linker.ld
     cargo build --features "board_qemu" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
