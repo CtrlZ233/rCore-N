@@ -17,13 +17,16 @@ clean:
     cargo clean
     cd ../user && make clean && cd -
 
+unfi-sche:
+    cd ../unfi-sche && make build
+
 user:
     cd ../user && make build
 
 user_lrv:
     cd ../user && make build_lrv
 
-build: user
+build: unfi-sche user 
     cp src/linker-qemu.ld src/linker.ld
     cargo build --features "board_qemu" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}

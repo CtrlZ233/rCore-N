@@ -30,3 +30,4 @@ board_qemu = ["uart8250"]
 board_lrv = ["uart_xilinx"]
 
 default = ["board_qemu"]
+

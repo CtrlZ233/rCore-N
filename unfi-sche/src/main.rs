@@ -22,7 +22,6 @@ use interface::{add_coroutine, run};
 use alloc::boxed::Box;
 use syscall::*;
 
-
 static mut SECONDARY_INIT: usize = 0usize;
 
 /// Rust 异常处理函数，以异常方式关机。
@@ -42,8 +41,6 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     sys_exit(-1);
 }
 
-// #[link_section = ".bss.interface"]
-// pub static mut INTERFACE: [usize; 0x1000 / core::mem::size_of::<usize>()] = [0usize; 0x1000 / core::mem::size_of::<usize>()];
 
 /// _start() 函数由内核跳转执行，只由内核执行一次，设置 printlib，如果不初始化，似乎会出现一些奇怪的问题
 #[no_mangle]
