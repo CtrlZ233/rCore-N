@@ -1,0 +1,12 @@
+[package]
+name = "unfi-sche"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+customizable-buddy = "0.0.2"
+riscv = "0.8.0"
+runtime ={ path = "../runtime"}
+spin = "0.9.4"
