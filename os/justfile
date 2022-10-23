@@ -1,6 +1,6 @@
 QEMU := "../../qemu-build/riscv64-softmmu/qemu-system-riscv64"
 # machine, supervisor, user, echo1, echo2
-SERIAL_FLAGS := "-serial /dev/pts/4 -serial /dev/pts/5 -serial /dev/pts/6 -serial tcp::23334,server,nowait -serial tcp:localhost:23334"
+SERIAL_FLAGS := "-serial /dev/pts/11 -serial /dev/pts/12 -serial /dev/pts/13 -serial tcp::23334,server,nowait -serial tcp:localhost:23334"
 
 TARGET := "riscv64gc-unknown-none-elf"
 MODE := "release"
@@ -15,7 +15,11 @@ KERNEL_BIN_LRV := BUILD_PATH + "rcore-n.bin"
 
 clean:
     cargo clean
+    cd ../unfi-sche && cargo clean
     cd ../user && make clean && cd -
+
+unfi-sche:
+    cd ../unfi-sche && make build
 
 user:
     cd ../user && make build
@@ -23,7 +27,7 @@ user:
 user_lrv:
     cd ../user && make build_lrv
 
-build: user
+build: user unfi-sche 
     cp src/linker-qemu.ld src/linker.ld
     cargo build --features "board_qemu" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}

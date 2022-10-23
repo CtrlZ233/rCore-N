@@ -1,7 +1,7 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
-BASE_ADDRESS = 0x0;
+BASE_ADDRESS = 0x1000;
 
 SECTIONS
 {
@@ -18,6 +18,7 @@ SECTIONS
     . = ALIGN(4K);
     .data : {
         *(.data.heap)
+        *(.data.executor)
         *(.data .data.*)
         *(.sdata .sdata.*)
     }

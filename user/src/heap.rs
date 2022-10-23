@@ -4,7 +4,7 @@ use core::{
     ptr::NonNull,
 };
 use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
-// use runtime::Executor;
+use runtime::Executor;
 
 
 pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
@@ -12,6 +12,9 @@ pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedList
 #[link_section = ".data.heap"]
 pub static mut HEAP: MutAllocator<32> = MutAllocator::new();
 
+#[no_mangle]
+#[link_section = ".data.executor"]
+pub static mut EXECUTOR: Executor = Executor::new();
 
 // 托管空间 16 KiB
 const MEMORY_SIZE: usize = 16 << 10;
@@ -22,9 +25,10 @@ static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];
 
 /// 初始化全局分配器和内核堆分配器。
 pub fn init() {
-    // printlib::log::debug!("heap {:#x}", unsafe{ &mut HEAP as *mut MutAllocator<32> as usize });
-    // printlib::log::debug!("heap {:#x}", core::mem::size_of::<MutAllocator<32>>());
-    // printlib::log::debug!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
+    println!("heap {:#x}", unsafe{ &mut HEAP as *mut MutAllocator<32> as usize });
+    println!("heap {:#x}", core::mem::size_of::<MutAllocator<32>>());
+    println!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
+    println!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
     
     unsafe {
         HEAP.init(
