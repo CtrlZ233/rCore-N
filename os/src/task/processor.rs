@@ -14,6 +14,8 @@ use core::cell::RefCell;
 use riscv::register::cycle;
 
 use lazy_static::*;
+use crate::println;
+use crate::task::process::ProcessControlBlock;
 lazy_static! {
     pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();
 }
@@ -89,7 +91,6 @@ impl Processor {
         // release
         drop(task_inner);
         self.inner.borrow_mut().current = Some(task);
-
         unsafe {
             __switch2(idle_task_cx_ptr, next_task_cx_ptr);
         }
@@ -163,6 +164,10 @@ pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSORS[hart_id()].current()
 }
 
+pub fn current_process() -> Option<Arc<ProcessControlBlock>> {
+    current_task().unwrap().process.upgrade()
+}
+
 #[allow(unused)]
 pub fn current_tasks() -> Vec<Option<Arc<TaskControlBlock>>> {
     PROCESSORS
@@ -172,13 +177,23 @@ pub fn current_tasks() -> Vec<Option<Arc<TaskControlBlock>>> {
 }
 
 pub fn current_user_token() -> usize {
-    let task = current_task().unwrap();
-    let token = task.acquire_inner_lock().get_user_token();
+    let process = current_process().unwrap();
+    let token = process.acquire_inner_lock().get_user_token();
     token
 }
 
 pub fn current_trap_cx() -> &'static mut TrapContext {
     current_task().unwrap().acquire_inner_lock().get_trap_cx()
+}
+
+pub fn current_trap_cx_user_va() -> usize {
+    current_task()
+        .unwrap()
+        .acquire_inner_lock()
+        .res
+        .as_ref()
+        .unwrap()
+        .trap_cx_user_va()
 }
 
 pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
@@ -209,7 +224,7 @@ pub fn set_current_priority(priority: isize) -> Result<isize, isize> {
 }
 
 pub fn mmap(start: usize, len: usize, port: usize) -> Result<isize, isize> {
-    if let Some(current) = current_task() {
+    if let Some(current) = current_process() {
         let mut current = current.acquire_inner_lock();
         current.mmap(start, len, port)
     } else {
@@ -218,7 +233,7 @@ pub fn mmap(start: usize, len: usize, port: usize) -> Result<isize, isize> {
 }
 
 pub fn munmap(start: usize, len: usize) -> Result<isize, isize> {
-    if let Some(current) = current_task() {
+    if let Some(current) = current_process() {
         let mut current = current.acquire_inner_lock();
         current.munmap(start, len)
     } else {
