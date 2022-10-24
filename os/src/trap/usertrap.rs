@@ -146,34 +146,35 @@ lazy_static! {
 
 pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
     push_trace(PUSH_TRAP_RECORD_ENTER + pid);
-    debug!(
-        "[push trap record] pid: {}, cause: {}, message: {}",
-        pid, trap_record.cause, trap_record.message
-    );
-    if let Some(tcb) = crate::task::find_task(pid) {
-        let mut tcb_inner = tcb.acquire_inner_lock();
-        if !tcb_inner.is_user_trap_enabled() {
-            // warn!("[push trap record] User trap disabled!");
-            // return Err(UserTrapError::TrapDisabled);
-        }
-        if let Some(trap_info) = &mut tcb_inner.user_trap_info {
-            let res = trap_info.push_trap_record(trap_record);
-            // if let Running(task_hart_id) = tcb_inner.task_status {
-            //     if task_hart_id != hart_id() {
-            //         let mask: usize = 1 << task_hart_id;
-            //         send_ipi(&mask as *const _ as usize);
-            //     }
-            // }
-            push_trace(PUSH_TRAP_RECORD_EXIT);
-            res
-        } else {
-            warn!("[push trap record] User trap uninitialized!");
-            push_trace(PUSH_TRAP_RECORD_EXIT);
-            Err(UserTrapError::TrapUninitialized)
-        }
-    } else {
-        warn!("[push trap record] Task Not Found!");
-        push_trace(PUSH_TRAP_RECORD_EXIT);
-        Err(UserTrapError::TaskNotFound)
-    }
+    // debug!(
+    //     "[push trap record] pid: {}, cause: {}, message: {}",
+    //     pid, trap_record.cause, trap_record.message
+    // );
+    // if let Some(tcb) = crate::task::find_task(pid) {
+    //     let mut tcb_inner = tcb.acquire_inner_lock();
+    //     if !tcb_inner.is_user_trap_enabled() {
+    //         // warn!("[push trap record] User trap disabled!");
+    //         // return Err(UserTrapError::TrapDisabled);
+    //     }
+    //     if let Some(trap_info) = &mut tcb_inner.user_trap_info {
+    //         let res = trap_info.push_trap_record(trap_record);
+    //         // if let Running(task_hart_id) = tcb_inner.task_status {
+    //         //     if task_hart_id != hart_id() {
+    //         //         let mask: usize = 1 << task_hart_id;
+    //         //         send_ipi(&mask as *const _ as usize);
+    //         //     }
+    //         // }
+    //         push_trace(PUSH_TRAP_RECORD_EXIT);
+    //         res
+    //     } else {
+    //         warn!("[push trap record] User trap uninitialized!");
+    //         push_trace(PUSH_TRAP_RECORD_EXIT);
+    //         Err(UserTrapError::TrapUninitialized)
+    //     }
+    // } else {
+    //     warn!("[push trap record] Task Not Found!");
+    //     push_trace(PUSH_TRAP_RECORD_EXIT);
+    //     Err(UserTrapError::TaskNotFound)
+    // }
+    Err(UserTrapError::TaskNotFound)
 }

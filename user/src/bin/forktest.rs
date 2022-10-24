@@ -1,34 +1,70 @@
+// #![no_std]
+// #![no_main]
+//
+// #[macro_use]
+// extern crate user_lib;
+//
+// use user_lib::{exit, fork, wait};
+//
+// const MAX_CHILD: usize = 40;
+//
+// #[no_mangle]
+// pub fn main() -> i32 {
+//     for i in 0..MAX_CHILD {
+//         let pid = fork();
+//         if pid == 0 {
+//             println!("I am child {}", i);
+//             exit(0);
+//         } else {
+//             println!("forked child pid = {}", pid);
+//         }
+//         assert!(pid > 0);
+//     }
+//     let mut exit_code: i32 = 0;
+//     for _ in 0..MAX_CHILD {
+//         if wait(&mut exit_code) <= 0 {
+//             panic!("wait stopped early");
+//         }
+//     }
+//     if wait(&mut exit_code) > 0 {
+//         panic!("wait got too many");
+//     }
+//     println!("forktest pass.");
+//     0
+// }
+
 #![no_std]
 #![no_main]
 
 #[macro_use]
 extern crate user_lib;
 
-use user_lib::{exit, fork, wait};
+use user_lib::{exit, fork, get_time, getpid, sleep, wait};
 
-const MAX_CHILD: usize = 40;
+static NUM: usize = 30;
 
 #[no_mangle]
 pub fn main() -> i32 {
-    for i in 0..MAX_CHILD {
+    println!("forktest2=========");
+    for _ in 0..NUM {
         let pid = fork();
         if pid == 0 {
-            println!("I am child {}", i);
+            let current_time = get_time();
+            let sleep_length =
+                (current_time as i32 as isize) * (current_time as i32 as isize) % 1000 + 1000;
+            println!("pid {} sleep for {} ms", getpid(), sleep_length);
+            sleep(sleep_length as usize);
+            println!("pid {} OK!", getpid());
             exit(0);
-        } else {
-            println!("forked child pid = {}", pid);
         }
-        assert!(pid > 0);
     }
+
     let mut exit_code: i32 = 0;
-    for _ in 0..MAX_CHILD {
-        if wait(&mut exit_code) <= 0 {
-            panic!("wait stopped early");
-        }
+    for _ in 0..NUM {
+        assert!(wait(&mut exit_code) > 0);
+        assert_eq!(exit_code, 0);
     }
-    if wait(&mut exit_code) > 0 {
-        panic!("wait got too many");
-    }
-    println!("forktest pass.");
+    assert!(wait(&mut exit_code) < 0);
+    println!("forktest2 test passed!");
     0
 }

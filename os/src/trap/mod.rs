@@ -2,13 +2,10 @@ mod context;
 mod usertrap;
 
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
-use crate::plic;
+use crate::{plic, println};
 use crate::sbi::set_timer;
-use crate::syscall::syscall;
-use crate::task::{
-    current_task, current_trap_cx, current_user_token, exit_current_and_run_next, hart_id,
-    suspend_current_and_run_next,
-};
+use crate::syscall::{sys_gettid, syscall};
+use crate::task::{current_task, current_trap_cx, current_trap_cx_user_va, current_user_token, exit_current_and_run_next, hart_id, suspend_current_and_run_next};
 use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
 use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
 use core::arch::{asm, global_asm};
@@ -123,7 +120,7 @@ pub fn trap_handler() -> ! {
                     //     }
                     // }
                     suspend_current_and_run_next();
-                } else if pid == current_task().unwrap().pid.0 {
+                } else if pid == current_task().unwrap().getpid() {
                     debug!("set UTIP for pid {}", pid);
                     unsafe {
                         sip::set_utimer();
@@ -164,12 +161,12 @@ pub fn trap_return() -> ! {
     unsafe {
         sstatus::clear_sie();
     }
-    current_task()
-        .unwrap()
-        .acquire_inner_lock()
-        .restore_user_trap_info();
+    // current_task()
+    //     .unwrap()
+    //     .acquire_inner_lock()
+    //     .restore_user_trap_info();
     set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT;
+    let trap_cx_ptr = current_trap_cx_user_va();
     let user_satp = current_user_token();
     extern "C" {
         fn __alltraps();

@@ -1,8 +1,8 @@
-use alloc::{collections::BTreeSet, sync::Arc};
+use alloc::{collections::{BTreeSet, BTreeMap}, sync::Arc};
 use lazy_static::*;
 use spin::Mutex;
 
-use super::{manager::TaskManager, task::TaskControlBlock};
+use super::{manager::TaskManager, task::TaskControlBlock, process::ProcessControlBlock};
 
 pub struct TaskPool {
     pub scheduler: TaskManager,
@@ -11,6 +11,8 @@ pub struct TaskPool {
 
 lazy_static! {
     pub static ref TASK_POOL: Mutex<TaskPool> = Mutex::new(TaskPool::new());
+    pub static ref PID2PCB: Mutex<BTreeMap<usize, Arc<ProcessControlBlock>>> =
+        unsafe { Mutex::new(BTreeMap::new()) };
 }
 
 impl TaskPool {
@@ -65,4 +67,20 @@ pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
 #[allow(unused)]
 pub fn prioritize_task(pid: usize) {
     TASK_POOL.lock().prioritize(pid);
+}
+
+pub fn pid2process(pid: usize) -> Option<Arc<ProcessControlBlock>> {
+    let map = PID2PCB.lock();
+    map.get(&pid).map(Arc::clone)
+}
+
+pub fn insert_into_pid2process(pid: usize, process: Arc<ProcessControlBlock>) {
+    PID2PCB.lock().insert(pid, process);
+}
+
+pub fn remove_from_pid2process(pid: usize) {
+    let mut map = PID2PCB.lock();
+    if map.remove(&pid).is_none() {
+        panic!("cannot find pid {} in pid2task!", pid);
+    }
 }

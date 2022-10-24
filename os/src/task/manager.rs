@@ -27,6 +27,7 @@ impl TaskManager {
     }
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         // May need to concern affinity
+        // debug!("tasks total: {}", self.ready_queue.len());
         self.ready_queue.pop_front()
     }
 
@@ -36,7 +37,7 @@ impl TaskManager {
         if q.is_empty() || q.len() == 1 {
             return;
         }
-        let front_pid = q.front().unwrap().pid.0;
+        let front_pid = q.front().unwrap().process.upgrade().unwrap().pid.0;
         if front_pid == pid {
             debug!("[Taskmgr] Task {} already at front", pid);
 
@@ -44,12 +45,12 @@ impl TaskManager {
         }
         q.rotate_left(1);
         while {
-            let f_pid = q.front().unwrap().pid.0;
+            let f_pid = q.front().unwrap().process.upgrade().unwrap().pid.0;
             f_pid != pid && f_pid != front_pid
         } {
             q.rotate_left(1);
         }
-        if q.front().unwrap().pid.0 == pid {
+        if q.front().unwrap().process.upgrade().unwrap().pid.0 == pid {
             debug!("[Taskmgr] Prioritized task {}", pid);
         }
     }

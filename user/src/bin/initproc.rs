@@ -54,7 +54,7 @@ use user_lib::{close, dup, exec, fork, open, waitpid, OpenFlags};
 
 #[no_mangle]
 pub fn main() -> i32 {
-    println!("Rust user shell");
+    println!("=============================Rust user shell");
     let mut line: String = String::new();
     print!(">> ");
     loop {
