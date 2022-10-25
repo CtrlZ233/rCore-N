@@ -15,6 +15,8 @@ extern crate log;
 
 use crate::{config::CPU_NUM, mm::init_kernel_space, sbi::send_ipi};
 use core::arch::{asm, global_asm};
+use core::hint;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 #[macro_use]
 mod console;

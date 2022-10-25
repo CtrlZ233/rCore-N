@@ -29,6 +29,7 @@ use crate::task::pid::TaskUserRes;
 
 lazy_static! {
     pub static ref WAIT_LOCK: Mutex<()> = Mutex::new(());
+    pub static ref WAITTID_LOCK: Mutex<()> = Mutex::new(());
 }
 
 pub fn suspend_current_and_run_next() {
@@ -46,17 +47,17 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next(exit_code: i32) {
     // ++++++ hold initproc PCB lock here
     // let mut initproc_inner = INITPROC.acquire_inner_lock();
-
     // take from Processor
     let task = take_current_task().unwrap();
     let process = task.process.upgrade().unwrap();
     // **** hold current PCB lock
-    let wl = WAIT_LOCK.lock();
+    let wtl = WAITTID_LOCK.lock();
     let mut inner = task.acquire_inner_lock();
     let tid = inner.res.as_ref().unwrap().tid;
+    // warn!("exit start: {}", tid);
     info!(
-        "pid: {} exited with code {}, time intr: {}, cycle count: {}",
-        task.getpid(), exit_code, inner.time_intr_count, inner.total_cpu_cycle_count
+        "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}",
+        task.getpid(), tid, exit_code, inner.time_intr_count, inner.total_cpu_cycle_count
     );
     // if let Some(trap_info) = &inner.user_trap_info {
     //     trap_info.remove_user_ext_int_map();
@@ -72,10 +73,14 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     inner.task_status = TaskStatus::Zombie;
     // Record exit code
     inner.exit_code = Some(exit_code);
+    // warn!("exit start: {} 2", tid);
     inner.res = None;
+    // warn!("exit start: {} 3", tid);
     drop(inner);
+    drop(wtl);
     // do not move to its parent but under initproc
     if tid == 0 {
+        let wl = WAIT_LOCK.lock();
         let pid = process.getpid();
         remove_from_pid2process(pid);
         let mut process_inner = process.acquire_inner_lock();
@@ -106,7 +111,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // drop task manually to maintain rc correctly
     drop(task);
     drop(process);
-    drop(wl);
+    // warn!("exit end: {}", tid);
     // we do not have to save task context
     let mut _unused = Default::default();
     schedule(&mut _unused as *mut _);

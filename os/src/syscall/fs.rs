@@ -12,8 +12,8 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         // debug!("sys_write {} {}", fd, len);
     }
     let token = current_user_token();
-    let task = current_process().unwrap();
-    let inner = task.acquire_inner_lock();
+    let process = current_process().unwrap();
+    let inner = process.acquire_inner_lock();
     if fd >= inner.fd_table.len() {
         return -1;
     }

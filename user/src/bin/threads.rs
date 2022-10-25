@@ -37,15 +37,20 @@ pub fn main() -> i32 {
         thread_create(thread_b as usize, 0),
         thread_create(thread_c as usize, 0),
     ];
+    println!("v :{:?}", v);
     let max_len = 40;
-    for _ in 0..max_len {
-        let tid = thread_create(thread_a as usize, 0);
+    for i in 0..max_len {
+        println!("create tid: {}", i + 4);
+        let tid = thread_create(thread_b as usize, 0);
+        println!("create tid: {} end", i + 4);
         v.push(tid);
     }
+    println!("create end");
     for tid in v.iter() {
         let exit_code = waittid(*tid as usize);
         println!("thread#{} exited with code {}", tid, exit_code);
     }
     println!("main thread exited.");
+    println!("==========================v size: {:?}", v);
     0
 }

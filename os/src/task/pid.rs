@@ -220,7 +220,6 @@ impl TaskUserRes {
 
 impl Drop for TaskUserRes {
     fn drop(&mut self) {
-        self.dealloc_tid();
         self.dealloc_user_res();
     }
 }

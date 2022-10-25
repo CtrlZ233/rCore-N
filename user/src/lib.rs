@@ -39,7 +39,7 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     }
 
     heap::init();
-    
+
     let mut v: Vec<&'static str> = Vec::new();
     for i in 0..argc {
         let str_start =

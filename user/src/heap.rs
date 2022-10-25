@@ -29,7 +29,7 @@ pub fn init() {
     println!("heap {:#x}", core::mem::size_of::<MutAllocator<32>>());
     println!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
     println!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
-    
+
     unsafe {
         HEAP.init(
             core::mem::size_of::<usize>().trailing_zeros() as _,
