@@ -133,6 +133,10 @@ impl TaskControlBlock {
     pub fn acquire_inner_lock(&self) -> MutexGuard<TaskControlBlockInner> {
         self.inner.lock()
     }
+
+    pub fn try_acquire_inner_lock(&self) -> Option<MutexGuard<TaskControlBlockInner>> {
+        self.inner.try_lock()
+    }
     pub fn get_user_token(&self) -> usize {
         let process = self.process.upgrade().unwrap();
         let inner = process.acquire_inner_lock();

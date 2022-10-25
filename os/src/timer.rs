@@ -36,6 +36,13 @@ pub fn get_time(mut ts: Vec<*mut usize>, tz: usize) -> isize {
     0
 }
 
+pub fn sleep_for_kernel(time_ms: usize) {
+    let start = get_time_ms();
+    while get_time_ms() < start + time_ms {
+        // sys_yield();
+    }
+}
+
 #[allow(dead_code)]
 pub fn get_time_ms() -> usize {
     time::read() / (CLOCK_FREQ / MSEC_PER_SEC)

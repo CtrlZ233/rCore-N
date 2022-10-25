@@ -1,4 +1,4 @@
-use crate::{mm::kernel_token, println, task::{add_task, current_task, TaskControlBlock}, trap::{trap_handler, TrapContext}};
+use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock}, trap::{trap_handler, TrapContext}};
 use alloc::sync::Arc;
 use crate::task::WAIT_LOCK;
 
@@ -57,7 +57,8 @@ pub fn sys_gettid() -> isize {
 pub fn sys_waittid(tid: usize) -> i32 {
     let task = current_task().unwrap();
     let process = task.process.upgrade().unwrap();
-    let _ = WAIT_LOCK.lock();
+    let wl = WAIT_LOCK.lock();
+    // debug!("wait tid:{}", tid);
     let task_inner = task.acquire_inner_lock();
     let mut process_inner = process.acquire_inner_lock();
     // a thread cannot wait for itself
@@ -71,14 +72,17 @@ pub fn sys_waittid(tid: usize) -> i32 {
             exit_code = Some(waited_exit_code);
         }
     } else {
+        drop(wl);
         // waited thread does not exist
         return -1;
     }
     if let Some(exit_code) = exit_code {
         // dealloc the exited thread
         process_inner.tasks[tid] = None;
+        drop(wl);
         exit_code
     } else {
+        drop(wl);
         // waited thread has not exited
         -2
     }
