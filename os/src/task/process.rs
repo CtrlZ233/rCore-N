@@ -26,8 +26,6 @@ pub struct ProcessControlBlockInner {
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
-    pub heap_ptr: usize,
-    pub entry_point: usize,
 }
 
 impl ProcessControlBlockInner {
@@ -81,7 +79,7 @@ impl ProcessControlBlock {
 
     pub fn new(elf_data: &[u8]) -> Arc<Self> {
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         debug!("new space end");
         // allocate a pid
         let pid_handle = pid_alloc();
@@ -104,8 +102,6 @@ impl ProcessControlBlock {
                     ],
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    heap_ptr,
-                    entry_point,
                 })
             },
         });
@@ -144,12 +140,10 @@ impl ProcessControlBlock {
     pub fn exec(self: &Arc<Self>, elf_data: &[u8]) {
         assert_eq!(self.acquire_inner_lock().thread_count(), 1);
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
         // substitute memory_set
         self.acquire_inner_lock().memory_set = memory_set;
-        self.acquire_inner_lock().heap_ptr = heap_ptr;
-        self.acquire_inner_lock().entry_point = entry_point;
         // then we alloc user resource for main thread again
         // since memory_set has been changed
         let task = self.acquire_inner_lock().get_task(0);
@@ -177,8 +171,6 @@ impl ProcessControlBlock {
         assert_eq!(parent.thread_count(), 1);
         // clone parent's memory_set completely including trampoline/ustacks/trap_cxs
         let memory_set = MemorySet::from_existed_user(&parent.memory_set);
-        let heap_ptr = parent.heap_ptr;
-        let entry_point = parent.entry_point;
         // alloc a pid
         let pid = pid_alloc();
         // copy fd table
@@ -203,8 +195,6 @@ impl ProcessControlBlock {
                     fd_table: new_fd_table,
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    heap_ptr,
-                    entry_point
                 })
             },
         });

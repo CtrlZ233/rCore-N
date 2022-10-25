@@ -22,7 +22,7 @@ use interface::{add_coroutine, run};
 use alloc::boxed::Box;
 use syscall::*;
 
-static mut SECONDARY_INIT: usize = 0usize;
+static mut ENTRY: usize = 0usize;
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
@@ -45,18 +45,13 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
 /// _start() 函数由内核跳转执行，只由内核执行一次，设置 printlib，如果不初始化，似乎会出现一些奇怪的问题
 #[no_mangle]
 #[link_section = ".text.entry"]
-unsafe extern "C" fn _start() -> usize {
-    init_proc as usize
-}
-
-/// 每个进程的初始化函数，主要是设置用户堆，在内核调度用户进程之前执行
-fn init_proc(secondary_init: usize, heapptr: usize) -> usize{
+unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
     let heap = heapptr as *mut usize as *mut MutAllocator<32>;
     let exe = (heapptr + core::mem::size_of::<MutAllocator<32>>()) as *mut usize as *mut Executor;
     unsafe {
         heap::init(&mut *heap);
         executor::init(&mut *exe);
-        SECONDARY_INIT = secondary_init;
+        ENTRY = entry;
     }
     primary_thread as usize
 }
@@ -65,12 +60,14 @@ fn init_proc(secondary_init: usize, heapptr: usize) -> usize{
 fn primary_thread() {
     println!("main thread init ");
     unsafe {
-        println!("SECONDARY_ENTER {:#x}", SECONDARY_INIT);
-        let secondary_init: fn(usize) -> usize = core::mem::transmute(SECONDARY_INIT);
-        let second_thread_entry =  secondary_init(add_coroutine as usize);
-        add_coroutine(Box::pin(test(second_thread_entry)), 0);
+        println!("SECONDARY_ENTER {:#x}", ENTRY);
+        let secondary_init: fn() = core::mem::transmute(ENTRY);
+        secondary_init();
+        // let main_entry =  secondary_init();
+        // add_coroutine(Box::pin(test(main_entry)), 0);
     }
-    run();
+    // run();
+    // sys_exit(0);
 }
 
 async fn test(entry: usize) {
