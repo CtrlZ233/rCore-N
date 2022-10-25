@@ -36,6 +36,7 @@ mod trap;
 #[macro_use]
 mod uart;
 mod trace;
+mod lkm;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.asm"));
@@ -62,6 +63,7 @@ pub fn rust_main(hart_id: usize) -> ! {
         plic::init();
         plic::init_hart(hart_id);
         uart::init();
+        lkm::init();
 
         extern "C" {
             fn boot_stack();

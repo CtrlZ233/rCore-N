@@ -187,10 +187,12 @@ impl MemorySet {
     }
     /// Include sections in elf and trampoline and TrapContext and user stack,
     /// also returns user_sp and entry point.
-    pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
+    pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize, usize) {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
+        memory_set.add_user_module(&crate::lkm::UNFI_SCHE_MEMORYSET);
+
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
         let elf_header = elf.header;
@@ -262,12 +264,15 @@ impl MemorySet {
             memory_set,
             user_stack_bottom,
             elf.header.pt2.entry_point() as usize,
+            elf.find_section_by_name(".data").unwrap().address() as usize
         )
     }
     pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
+        memory_set.add_user_module(&crate::lkm::UNFI_SCHE_MEMORYSET);
+
         // copy data sections/trap_context/user_stack
         for area in user_space.areas.iter() {
             let new_area = MapArea::from_another(area);
@@ -444,6 +449,71 @@ impl MemorySet {
     pub fn recycle_data_pages(&mut self) {
         //*self = Self::new_bare();
         self.areas.clear();
+    }
+
+    /// 得到模块的地址空间
+    pub fn from_module(elf_data: &[u8]) -> Self {
+        let mut memory_set = Self::new_bare();
+        // map program headers of elf, with U flag
+        let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
+        let elf_header = elf.header;
+        let magic = elf_header.pt1.magic;
+        assert_eq!(magic, [0x7f, 0x45, 0x4c, 0x46], "invalid elf!");
+        let ph_count = elf_header.pt2.ph_count();
+        for i in 0..ph_count {
+            let ph = elf.program_header(i).unwrap();
+            if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
+                let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
+                let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
+                // println!("module_va {:#x} ~ {:#x}", start_va.0, end_va.0);
+                let mut map_perm = MapPermission::U;
+                let ph_flags = ph.flags();
+                if ph_flags.is_read() {
+                    map_perm |= MapPermission::R;
+                }
+                if ph_flags.is_write() {
+                    map_perm |= MapPermission::W;
+                }
+                if ph_flags.is_execute() {
+                    map_perm |= MapPermission::X;
+                }
+                let map_area = MapArea::new(start_va, end_va, MapType::Framed, map_perm);
+                memory_set.push(
+                    map_area,
+                    Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
+                );
+            }
+        }
+        // (
+        memory_set
+            // elf.header.pt2.entry_point() as usize,
+        // )
+    }
+    pub fn add_kernel_module(&mut self, module_space: &MemorySet) {
+        for area in module_space.areas.iter() {
+            crate::println!("addr {:#x?} - {:#x?}", area.vpn_range.get_start(), area.vpn_range.get_end());
+            for vpn in area.vpn_range {
+                // println!("ppn {:#x?}", module_space.translate(vpn).unwrap().ppn());
+                self.page_table.map(
+                    vpn,
+                    module_space.translate(vpn).unwrap().ppn(),
+                    PTEFlags::R | PTEFlags::X | PTEFlags::W,
+                );
+            }
+        }
+    }
+    pub fn add_user_module(&mut self, module_space: &MemorySet) {
+        for area in module_space.areas.iter() {
+            // println!("addr {:#x?} - {:#x?}", area.vpn_range.get_start(), area.vpn_range.get_end());
+            for vpn in area.vpn_range {
+                // println!("ppn {:#x?}", module_space.translate(vpn).unwrap().ppn());
+                self.page_table.map(
+                    vpn,
+                    module_space.translate(vpn).unwrap().ppn(),
+                    PTEFlags::R | PTEFlags::X | PTEFlags::W | PTEFlags::U,
+                );
+            }
+        }
     }
 }
 
