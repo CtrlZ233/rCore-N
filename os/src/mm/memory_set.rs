@@ -187,7 +187,7 @@ impl MemorySet {
     }
     /// Include sections in elf and trampoline and TrapContext and user stack,
     /// also returns user_sp and entry point.
-    pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
+    pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize, usize) {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
@@ -264,7 +264,7 @@ impl MemorySet {
             memory_set,
             user_stack_bottom,
             elf.header.pt2.entry_point() as usize,
-            // elf.find_section_by_name(".data").unwrap().address() as usize
+            elf.find_section_by_name(".data").unwrap().address() as usize
         )
     }
     pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {

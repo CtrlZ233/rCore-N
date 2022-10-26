@@ -42,7 +42,7 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
 }
 
 
-/// _start() 函数由内核跳转执行，只由内核执行一次，设置 printlib，如果不初始化，似乎会出现一些奇怪的问题
+/// _start() 函数由内核跳转执行，在每次执行线程之前需要由内核调用一次，设置默认的堆
 #[no_mangle]
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
@@ -56,7 +56,7 @@ unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
     primary_thread as usize
 }
 
-/// 初始化进程时，主线程的入口，在这个函数中初始化进程堆的 MEMORY，printlib
+/// sret 进入用户态的入口，在这个函数再执行 main 函数
 fn primary_thread() {
     println!("main thread init ");
     unsafe {
@@ -70,12 +70,12 @@ fn primary_thread() {
     // sys_exit(0);
 }
 
-async fn test(entry: usize) {
-    unsafe {
-        let secondary_thread: fn() -> usize = core::mem::transmute(entry);
-        secondary_thread();
-    }
-}
+// async fn test(entry: usize) {
+//     unsafe {
+//         let secondary_thread: fn() -> usize = core::mem::transmute(entry);
+//         secondary_thread();
+//     }
+// }
 
 
 

@@ -88,6 +88,9 @@ impl Processor {
             task_cx
         );
         task_inner.last_cpu_cycle = cycle::read();
+        let heap_ptr = task.process.upgrade().unwrap().acquire_inner_lock().heap_ptr;
+        let entry_point = task.process.upgrade().unwrap().acquire_inner_lock().entry_point;
+        crate::lkm::task_init(entry_point, heap_ptr);
         // release
         drop(task_inner);
         self.inner.borrow_mut().current = Some(task);
