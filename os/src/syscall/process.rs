@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use crate::config::{CPU_NUM, MEMORY_END};
 use crate::loader::get_app_data_by_name;
-use crate::mm;
+use crate::{mm, println};
 use crate::plic::{get_context, Plic};
 use crate::task::{
     add_task, current_task, current_process, current_user_token, exit_current_and_run_next, hart_id, mmap, munmap,
@@ -69,6 +69,7 @@ pub fn sys_fork() -> isize {
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
+    add_task((*task).clone());
     // add new task to scheduler
     debug!("new_task {:?} via fork", new_pid);
     new_pid as isize
@@ -157,18 +158,20 @@ pub fn sys_flush_trace() -> isize {
 }
 
 pub fn sys_init_user_trap() -> isize {
-    // trace!("init user trap!");
-    // match current_task()
-    //     .unwrap()
-    //     .acquire_inner_lock()
-    //     .init_user_trap()
-    // {
-    //     Ok(addr) => {
-    //         trace!("init ok, addr: {:#x}", addr);
-    //         addr
-    //     }
-    //     Err(errno) => errno,
-    // }
+    trace!("init user trap!");
+    match current_process()
+        .unwrap()
+        .acquire_inner_lock()
+        .init_user_trap()
+    {
+        Ok(addr) => {
+            trace!("init ok, addr: {:#x}", addr);
+            return addr;
+        }
+        Err(errno) => {
+            return errno;
+        }
+    }
     -1
 }
 
@@ -190,11 +193,12 @@ pub fn sys_send_msg(pid: usize, msg: usize) -> isize {
 }
 
 pub fn sys_set_timer(time_us: usize) -> isize {
-    // let pid = current_task().unwrap().pid.0;
-    // use crate::config::CLOCK_FREQ;
-    // use crate::timer::{set_virtual_timer, USEC_PER_SEC};
-    // let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
-    // set_virtual_timer(time, pid);
+    debug!("set timer");
+    let pid = current_process().unwrap().pid.0;
+    use crate::config::CLOCK_FREQ;
+    use crate::timer::{set_virtual_timer, USEC_PER_SEC};
+    let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
+    set_virtual_timer(time, pid);
     0
 }
 
