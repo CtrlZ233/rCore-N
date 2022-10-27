@@ -193,7 +193,6 @@ pub fn sys_send_msg(pid: usize, msg: usize) -> isize {
 }
 
 pub fn sys_set_timer(time_us: usize) -> isize {
-    debug!("set timer");
     let pid = current_process().unwrap().pid.0;
     use crate::config::CLOCK_FREQ;
     use crate::timer::{set_virtual_timer, USEC_PER_SEC};

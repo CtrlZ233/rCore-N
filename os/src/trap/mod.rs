@@ -121,13 +121,12 @@ pub fn trap_handler() -> ! {
                     //     }
                     // }
                     suspend_current_and_run_next();
-                } else if pid == current_task().unwrap().getpid() {
+                } else if pid == current_task().unwrap().getpid() && sys_gettid() == 0 {
                     debug!("set UTIP for pid {}", pid);
                     unsafe {
                         sip::set_utimer();
                     }
                 } else {
-                    debug!("timer int push trap record");
                     let _ = push_trap_record(
                         pid,
                         UserTrapRecord {

@@ -1,8 +1,8 @@
 use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock}, trap::{trap_handler, TrapContext}};
 use alloc::sync::Arc;
 use crate::task::{WAIT_LOCK, WAITTID_LOCK};
+
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
-    debug!("thread create start");
     let task = current_task().unwrap();
 
     let process = task.process.upgrade().unwrap();

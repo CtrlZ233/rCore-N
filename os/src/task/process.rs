@@ -8,6 +8,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};
+use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;
 use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
 
@@ -107,7 +108,7 @@ impl ProcessControlBlockInner {
 
     pub fn restore_user_trap_info(&mut self) {
         use riscv::register::{uip, uscratch};
-        if self.is_user_trap_enabled() {
+        if self.is_user_trap_enabled() && sys_gettid() == 0 {
             if let Some(trap_info) = &mut self.user_trap_info {
                 // if trap_info.user_trap_record_num > 0 {
                 //     uscratch::write(trap_info.user_trap_record_num as usize);
