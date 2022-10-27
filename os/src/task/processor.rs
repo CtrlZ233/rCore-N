@@ -74,6 +74,9 @@ impl Processor {
             idle_task_cx_ptr,
             unsafe { &*idle_task_cx_ptr }
         );
+        let heap_ptr = task.process.upgrade().unwrap().acquire_inner_lock().heap_ptr;
+        let entry_point = task.process.upgrade().unwrap().acquire_inner_lock().entry_point;
+        crate::lkm::task_init(entry_point, heap_ptr);
         // acquire
         let mut task_inner = task.acquire_inner_lock();
         let next_task_cx_ptr = task_inner.get_task_cx_ptr();
@@ -88,9 +91,6 @@ impl Processor {
             task_cx
         );
         task_inner.last_cpu_cycle = cycle::read();
-        let heap_ptr = task.process.upgrade().unwrap().acquire_inner_lock().heap_ptr;
-        let entry_point = task.process.upgrade().unwrap().acquire_inner_lock().entry_point;
-        crate::lkm::task_init(entry_point, heap_ptr);
         // release
         drop(task_inner);
         self.inner.borrow_mut().current = Some(task);
