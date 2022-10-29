@@ -70,8 +70,6 @@ pub fn sys_fork() -> isize {
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
     add_task((*task).clone());
-    // add new task to scheduler
-    add_task((*task).clone());
     debug!("new_task {:?} via fork", new_pid);
     new_pid as isize
 }

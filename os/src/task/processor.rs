@@ -74,17 +74,20 @@ impl Processor {
             idle_task_cx_ptr,
             unsafe { &*idle_task_cx_ptr }
         );
-        let heap_ptr = task.process.upgrade().unwrap().acquire_inner_lock().heap_ptr;
-        let entry_point = task.process.upgrade().unwrap().acquire_inner_lock().entry_point;
-        crate::lkm::task_init(entry_point, heap_ptr);
         // acquire
         let process = task.process.upgrade().unwrap();
         let process_inner = process.acquire_inner_lock();
+        let heap_ptr = process_inner.heap_ptr;
+        let entry_point = process_inner.entry_point;
         if process_inner.is_user_trap_enabled() {
             process_inner.user_trap_info.as_ref().unwrap().enable_user_ext_int();
         }
+
         drop(process_inner);
         drop(process);
+
+        crate::lkm::task_init(entry_point, heap_ptr);
+
         let mut task_inner = task.acquire_inner_lock();
         let next_task_cx_ptr = task_inner.get_task_cx_ptr();
         task_inner.task_status = TaskStatus::Running(hart_id());

@@ -204,7 +204,7 @@ impl ProcessControlBlock {
         let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
         // substitute memory_set
-        let process_inner = self.acquire_inner_lock();
+        let mut process_inner = self.acquire_inner_lock();
         process_inner.memory_set = memory_set;
         process_inner.heap_ptr = heap_ptr;
         process_inner.entry_point = entry_point;
