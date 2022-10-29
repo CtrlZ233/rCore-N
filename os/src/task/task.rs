@@ -30,7 +30,6 @@ pub struct TaskControlBlockInner {
     pub trap_cx_ppn: PhysPageNum,
     pub task_cx: TaskContext,
     pub task_cx_ptr: usize,
-    pub user_trap_info: Option<UserTrapInfo>,
     pub task_status: TaskStatus,
     pub priority: isize,
     pub exit_code: Option<i32>,
@@ -74,10 +73,6 @@ impl TaskControlBlockInner {
 
     pub fn is_mailbox_empty(&self) -> bool {
         self.mail_box.is_empty()
-    }
-
-    pub fn is_user_trap_enabled(&self) -> bool {
-        self.get_trap_cx().sstatus.uie()
     }
 
     // pub fn init_user_trap(&mut self) -> Result<isize, isize> {
@@ -166,7 +161,6 @@ impl TaskControlBlock {
                     trap_cx_ppn,
                     task_cx: TaskContext::goto_trap_return(kstack_top, tid),
                     task_cx_ptr: 0,
-                    user_trap_info: None,
                     task_status: TaskStatus::Ready,
                     priority: 0,
                     exit_code: None,

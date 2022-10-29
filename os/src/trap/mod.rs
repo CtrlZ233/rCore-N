@@ -5,7 +5,7 @@ use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::{plic, println};
 use crate::sbi::set_timer;
 use crate::syscall::{sys_gettid, syscall};
-use crate::task::{current_task, current_trap_cx, current_trap_cx_user_va, current_user_token, exit_current_and_run_next, hart_id, suspend_current_and_run_next};
+use crate::task::{current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token, exit_current_and_run_next, hart_id, suspend_current_and_run_next};
 use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
 use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
 use core::arch::{asm, global_asm};
@@ -104,6 +104,7 @@ pub fn trap_handler() -> ! {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             // let current_time = time::read();
             let mut timer_map = TIMER_MAP[hart_id()].lock();
+            // debug!("test");
             while let Some((_, pid)) = timer_map.pop_first() {
                 if let Some((next_time, _)) = timer_map.first_key_value() {
                     set_timer(*next_time);
@@ -120,7 +121,7 @@ pub fn trap_handler() -> ! {
                     //     }
                     // }
                     suspend_current_and_run_next();
-                } else if pid == current_task().unwrap().getpid() {
+                } else if pid == current_task().unwrap().getpid() && sys_gettid() == 0 {
                     debug!("set UTIP for pid {}", pid);
                     unsafe {
                         sip::set_utimer();
@@ -161,10 +162,15 @@ pub fn trap_return() -> ! {
     unsafe {
         sstatus::clear_sie();
     }
-    // current_task()
-    //     .unwrap()
-    //     .acquire_inner_lock()
-    //     .restore_user_trap_info();
+    current_process()
+        .unwrap()
+        .acquire_inner_lock()
+        .restore_user_trap_info();
+    // let is_sstatus_uie = current_process().unwrap().acquire_inner_lock().is_sstatus_uie;
+    let mut trap_cx = current_trap_cx();
+    // if is_sstatus_uie {
+    //     trap_cx.sstatus.set_uie(true);
+    // }
     set_user_trap_entry();
     let trap_cx_ptr = current_trap_cx_user_va();
     let user_satp = current_user_token();

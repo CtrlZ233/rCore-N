@@ -4,8 +4,8 @@ use riscv::register::{ucause, uepc, uip, ustatus::Ustatus, utval};
 
 pub const PAGE_SIZE: usize = 0x1000;
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
-pub const TRAP_CONTEXT: usize = TRAMPOLINE - PAGE_SIZE;
-pub const USER_TRAP_BUFFER: usize = TRAP_CONTEXT - PAGE_SIZE;
+pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
+pub const TRAP_CONTEXT: usize = USER_TRAP_BUFFER - PAGE_SIZE;
 const MAX_USER_TRAP_NUM: usize = 128;
 
 use rv_plic::PLIC;

@@ -5,19 +5,17 @@
 extern crate user_lib;
 extern crate alloc;
 
+use core::ptr::null;
 use core::sync::atomic::{AtomicIsize, Ordering};
 use riscv::register::uie;
-use user_lib::{
-    exit, get_time, init_user_trap, send_msg, set_timer, spawn, yield_, UserTrapContext,
-    UserTrapQueue,
-};
+use user_lib::{exit, get_time, init_user_trap, send_msg, set_timer, spawn, yield_, UserTrapContext, UserTrapQueue, fork, exec};
 
 static PID: AtomicIsize = AtomicIsize::new(0);
 
 #[no_mangle]
 pub fn main() -> i32 {
     println!("user trap demo");
-    let pid = spawn("uart_ext\0");
+    let pid = fork();
     if pid > 0 {
         PID.store(pid, Ordering::SeqCst);
         init_user_trap();
@@ -34,7 +32,10 @@ pub fn main() -> i32 {
             yield_();
         }
     } else {
-        println!("[trap demo] spawn failed!");
+        if exec("uart_ext\0", &[0 as *const u8]) == -1 {
+            println!("Error when executing!");
+            return -4;
+        }
     }
     0
 }
@@ -42,8 +43,10 @@ pub fn main() -> i32 {
 use riscv::register::{ucause, uepc, uip, utval};
 pub const PAGE_SIZE: usize = 0x1000;
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
-pub const TRAP_CONTEXT: usize = TRAMPOLINE - PAGE_SIZE;
-pub const USER_TRAP_BUFFER: usize = TRAP_CONTEXT - PAGE_SIZE;
+pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
+pub const TRAP_CONTEXT: usize = USER_TRAP_BUFFER - PAGE_SIZE;
+// pub const TRAP_CONTEXT: usize = TRAMPOLINE - PAGE_SIZE;
+// pub const USER_TRAP_BUFFER: usize = TRAP_CONTEXT - PAGE_SIZE;
 #[no_mangle]
 pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
     let ucause = ucause::read();

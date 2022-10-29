@@ -1,14 +1,16 @@
 use alloc::string::String;
 use spin::{Mutex, MutexGuard};
-use crate::mm::{KERNEL_SPACE, MemorySet, translated_refmut};
+use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, translated_refmut, VirtAddr};
 use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
 use super::pid::RecycleAllocator;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
+use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};
+use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;
-use crate::trap::{trap_handler, TrapContext, UserTrapInfo};
+use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
 
 pub struct ProcessControlBlock {
     // immutable
@@ -19,7 +21,9 @@ pub struct ProcessControlBlock {
 
 pub struct ProcessControlBlockInner {
     pub is_zombie: bool,
+    pub is_sstatus_uie: bool,
     pub memory_set: MemorySet,
+    pub user_trap_info: Option<UserTrapInfo>,
     pub parent: Option<Weak<ProcessControlBlock>>,
     pub children: Vec<Arc<ProcessControlBlock>>,
     pub exit_code: i32,
@@ -72,6 +76,59 @@ impl ProcessControlBlockInner {
     pub fn munmap(&mut self, start: usize, len: usize) -> Result<isize, isize> {
         self.memory_set.munmap(start, len)
     }
+
+    pub fn is_user_trap_enabled(&self) -> bool {
+        self.is_sstatus_uie
+    }
+
+    pub fn init_user_trap(&mut self) -> Result<isize, isize> {
+        use riscv::register::sstatus;
+        if self.user_trap_info.is_none() {
+            // R | W
+            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE, 0b11).is_ok() {
+                let phys_addr =
+                    translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
+                self.user_trap_info = Some(UserTrapInfo {
+                    user_trap_buffer_ppn: PhysPageNum::from(PhysAddr::from(phys_addr)),
+                    devices: Vec::new(),
+                });
+                let trap_queue = self.user_trap_info.as_mut().unwrap().get_trap_queue_mut();
+                *trap_queue = UserTrapQueue::new();
+                unsafe {
+                    sstatus::set_uie();
+                }
+                self.is_sstatus_uie = true;
+                return Ok(USER_TRAP_BUFFER as isize);
+            } else {
+                warn!("[init user trap] mmap failed!");
+            }
+        } else {
+            warn!("[init user trap] self user trap info is not None!");
+        }
+        Err(-1)
+    }
+
+    pub fn restore_user_trap_info(&mut self) {
+        use riscv::register::{uip, uscratch};
+        if self.is_user_trap_enabled() && sys_gettid() == 0 {
+            if let Some(trap_info) = &mut self.user_trap_info {
+                // if trap_info.user_trap_record_num > 0 {
+                //     uscratch::write(trap_info.user_trap_record_num as usize);
+                //     trap_info.user_trap_record_num = 0;
+                //     unsafe {
+                //         uip::set_usoft();
+                //     }
+                // }
+                if !trap_info.get_trap_queue().is_empty() {
+                    trace!("restore {} user trap", trap_info.user_trap_record_num());
+                    uscratch::write(trap_info.user_trap_record_num());
+                    unsafe {
+                        uip::set_usoft();
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl ProcessControlBlock {
@@ -82,7 +139,6 @@ impl ProcessControlBlock {
     pub fn new(elf_data: &[u8]) -> Arc<Self> {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
-        debug!("new space end");
         // allocate a pid
         let pid_handle = pid_alloc();
         let process = Arc::new(Self {
@@ -90,7 +146,9 @@ impl ProcessControlBlock {
             inner: unsafe {
                 Mutex::new(ProcessControlBlockInner {
                     is_zombie: false,
+                    is_sstatus_uie: false,
                     memory_set,
+                    user_trap_info: None,
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
@@ -109,14 +167,12 @@ impl ProcessControlBlock {
                 })
             },
         });
-        debug!("start alloc user resource");
         // create a main thread, we should allocate ustack and trap_cx here
         let task = Arc::new(TaskControlBlock::new(
             Arc::clone(&process),
             ustack_base,
             true,
         ));
-        debug!("alloc user resource end");
         // prepare trap_cx of main thread
         let task_inner = task.acquire_inner_lock();
         let trap_cx = task_inner.get_trap_cx();
@@ -148,9 +204,12 @@ impl ProcessControlBlock {
         let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
         // substitute memory_set
-        self.acquire_inner_lock().memory_set = memory_set;
-        self.acquire_inner_lock().heap_ptr = heap_ptr;
-        self.acquire_inner_lock().entry_point = entry_point;
+        let process_inner = self.acquire_inner_lock();
+        process_inner.memory_set = memory_set;
+        process_inner.heap_ptr = heap_ptr;
+        process_inner.entry_point = entry_point;
+        process_inner.user_trap_info = None;
+        drop(process_inner);
         // then we alloc user resource for main thread again
         // since memory_set has been changed
         let task = self.acquire_inner_lock().get_task(0);
@@ -190,13 +249,25 @@ impl ProcessControlBlock {
                 new_fd_table.push(None);
             }
         }
+
+        let mut user_trap_info: Option<UserTrapInfo> = None;
+        if let Some(mut trap_info) = parent.user_trap_info.clone() {
+            trap_info.user_trap_buffer_ppn = memory_set
+                .translate(VirtAddr::from(USER_TRAP_BUFFER).into())
+                .unwrap()
+                .ppn();
+            user_trap_info = Some(trap_info);
+        }
+
         // create child process pcb
         let child = Arc::new(Self {
             pid,
             inner: unsafe {
                 Mutex::new(ProcessControlBlockInner {
                     is_zombie: false,
+                    is_sstatus_uie: false,
                     memory_set,
+                    user_trap_info: None,
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
@@ -235,8 +306,6 @@ impl ProcessControlBlock {
         trap_cx.kernel_sp = task.kstack.get_top();
         drop(task_inner);
         insert_into_pid2process(child.getpid(), Arc::clone(&child));
-        // add this thread to scheduler
-        // add_task(task);
         child
     }
 

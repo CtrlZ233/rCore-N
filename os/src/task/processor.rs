@@ -78,12 +78,17 @@ impl Processor {
         let entry_point = task.process.upgrade().unwrap().acquire_inner_lock().entry_point;
         crate::lkm::task_init(entry_point, heap_ptr);
         // acquire
+        let process = task.process.upgrade().unwrap();
+        let process_inner = process.acquire_inner_lock();
+        if process_inner.is_user_trap_enabled() {
+            process_inner.user_trap_info.as_ref().unwrap().enable_user_ext_int();
+        }
+        drop(process_inner);
+        drop(process);
         let mut task_inner = task.acquire_inner_lock();
         let next_task_cx_ptr = task_inner.get_task_cx_ptr();
         task_inner.task_status = TaskStatus::Running(hart_id());
-        if let Some(trap_info) = &task_inner.user_trap_info {
-            trap_info.enable_user_ext_int();
-        }
+
         let task_cx = unsafe { &*next_task_cx_ptr };
         trace!(
             "next task cx ptr: {:#x?}, task cx: {:#x?}",
@@ -104,16 +109,19 @@ impl Processor {
         if let Some(task) = take_current_task() {
             // ---- hold current PCB lock
             push_trace(SUSPEND_CURRENT + task.getpid());
-            let mut task_inner = task.acquire_inner_lock();
-            // Change status to Ready
-            task_inner.task_status = TaskStatus::Ready;
-            if let Some(trap_info) = &task_inner.user_trap_info {
-                trap_info.disable_user_ext_int();
+            let process = task.process.upgrade().unwrap();
+            let process_inner = process.acquire_inner_lock();
+            if process_inner.is_user_trap_enabled() {
+                process_inner.user_trap_info.as_ref().unwrap().disable_user_ext_int();
             }
+            drop(process_inner);
+            drop(process);
+            // Change status to Ready
+            let mut task_inner = task.acquire_inner_lock();
+            task_inner.task_status = TaskStatus::Ready;
             task_inner.total_cpu_cycle_count += cycle::read() - task_inner.last_cpu_cycle;
             drop(task_inner);
             // ---- release current PCB lock
-
             // push back to ready queue.
             add_task(task);
         }

@@ -17,13 +17,13 @@ use switch::__switch2;
 
 pub use context::TaskContext;
 pub use pid::{pid_alloc, KernelStack, PidHandle};
-pub use pool::{add_task, fetch_task, prioritize_task};
+pub use pool::{add_task, fetch_task, prioritize_task, pid2process};
 pub use processor::{
     current_task, current_process, current_trap_cx, current_user_token, hart_id, mmap, munmap, run_tasks, schedule,
     set_current_priority, take_current_task, current_trap_cx_user_va
 };
 pub use task::{TaskControlBlock, TaskStatus};
-use crate::task::pool::remove_from_pid2process;
+use crate::task::pool::{remove_from_pid2process};
 pub use process::ProcessControlBlock;
 use crate::task::pid::TaskUserRes;
 
@@ -45,6 +45,7 @@ pub fn suspend_current_and_run_next() {
 }
 
 pub fn exit_current_and_run_next(exit_code: i32) {
+    debug!("exit start");
     // ++++++ hold initproc PCB lock here
     // let mut initproc_inner = INITPROC.acquire_inner_lock();
     // take from Processor
@@ -59,15 +60,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}",
         task.getpid(), tid, exit_code, inner.time_intr_count, inner.total_cpu_cycle_count
     );
-    // if let Some(trap_info) = &inner.user_trap_info {
-    //     trap_info.remove_user_ext_int_map();
-    //     use riscv::register::sie;
-    //     unsafe {
-    //         sie::clear_uext();
-    //         sie::clear_usoft();
-    //         sie::clear_utimer();
-    //     }
-    // }
 
     // Change status to Zombie
     inner.task_status = TaskStatus::Zombie;
@@ -84,6 +76,15 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         let pid = process.getpid();
         remove_from_pid2process(pid);
         let mut process_inner = process.acquire_inner_lock();
+        if let Some(trap_info) = &process_inner.user_trap_info {
+            trap_info.remove_user_ext_int_map();
+            use riscv::register::sie;
+            unsafe {
+                sie::clear_uext();
+                sie::clear_usoft();
+                sie::clear_utimer();
+            }
+        }
         process_inner.is_zombie = true;
         process_inner.exit_code = exit_code;
         {
@@ -113,6 +114,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     drop(process);
     // warn!("exit end: {}", tid);
     // we do not have to save task context
+    debug!("exit end ");
     let mut _unused = Default::default();
     schedule(&mut _unused as *mut _);
 
