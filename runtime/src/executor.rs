@@ -4,7 +4,7 @@ use core::task::Waker;
 use alloc::collections::btree_map::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::sync::atomic::AtomicBool;
+use spin::Mutex;
 
 use crate::{
     coroutine::{Coroutine, CoroutineId},
@@ -23,7 +23,7 @@ pub struct Executor {
     pub ready_queue: [Vec<CoroutineId>; PRIO_NUM],
     pub block_queue: Vec<CoroutineId>,
     pub waker_cache: BTreeMap<CoroutineId, Arc<Waker>>,
-    pub lock: AtomicBool,
+    pub lock: Mutex<()>,
 }
 
 impl Executor {
@@ -33,15 +33,17 @@ impl Executor {
             ready_queue: [VAL; PRIO_NUM],
             block_queue: Vec::new(),
             waker_cache: BTreeMap::new(),
-            lock: AtomicBool::new(false),
+            lock: Mutex::new(()),
         }
     }
 
     pub fn add_coroutine(&mut self, task: Arc<Coroutine>) {
+        let lock = self.lock.lock();
         let cid = task.cid;
         let prio = task.prio;
         self.ready_queue[prio].push(cid);
         self.tasks.insert(cid, task);
+        drop(lock);
     }
 
     pub fn get_waker(&mut self, cid: CoroutineId, prio: usize) -> Arc<Waker> {
