@@ -28,7 +28,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() {
+pub extern "C" fn _start() -> usize {
 // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
 
     use riscv::register::{mtvec::TrapMode, utvec};
@@ -56,7 +56,8 @@ pub extern "C" fn _start() {
     //         .unwrap(),
     //     );
     // }
-    exit(main());
+    // exit(main());
+    main as usize
     // main as usize
 }
 

@@ -3,6 +3,7 @@
 #![feature(default_alloc_error_handler)]
 #![feature(naked_functions, asm_sym)]
 #![feature(panic_info_message)]
+#![feature(allocator_api)]
 
 
 #[macro_use]
@@ -21,6 +22,7 @@ use runtime::Executor;
 use interface::{add_coroutine, run};
 use alloc::boxed::Box;
 use syscall::*;
+mod config;
 
 static mut ENTRY: usize = 0usize;
 
@@ -58,24 +60,36 @@ unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 fn primary_thread() {
+    println!("hart_id {}", hart_id());
     println!("main thread init ");
     unsafe {
         println!("SECONDARY_ENTER {:#x}", ENTRY);
-        let secondary_init: fn() = core::mem::transmute(ENTRY);
-        secondary_init();
+        let secondary_init: fn() -> usize = core::mem::transmute(ENTRY);
+        // main_addr 表示用户进程 main 函数的地址
+        let main_addr = secondary_init();
         // let main_entry =  secondary_init();
-        // add_coroutine(Box::pin(test(main_entry)), 0);
+        let main: fn() -> i32 = core::mem::transmute(main_addr);
+        // add_coroutine(Box::pin(test(main_addr)), 0);
+        sys_exit(main());
     }
     // run();
     // sys_exit(0);
 }
 
-// async fn test(entry: usize) {
-//     unsafe {
-//         let secondary_thread: fn() -> usize = core::mem::transmute(entry);
-//         secondary_thread();
-//     }
-// }
+async fn test(entry: usize) {
+    unsafe {
+        let secondary_thread: fn() -> usize = core::mem::transmute(entry);
+        secondary_thread();
+    }
+}
+
+pub fn hart_id() -> usize {
+    let hart_id: usize;
+    unsafe {
+        core::arch::asm!("mv {}, tp", out(reg) hart_id);
+    }
+    hart_id
+}
 
 
 
