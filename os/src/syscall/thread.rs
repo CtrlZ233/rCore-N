@@ -1,6 +1,7 @@
 use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock}, trap::{trap_handler, TrapContext}};
 use alloc::sync::Arc;
 use crate::task::{WAIT_LOCK, WAITTID_LOCK};
+
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
 
@@ -37,6 +38,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     (*new_task_trap_cx).x[10] = arg;
     // add new task to scheduler
     add_task(Arc::clone(&new_task));
+    debug!("thread create start end");
     new_task_tid as isize
 }
 
@@ -54,6 +56,7 @@ pub fn sys_gettid() -> isize {
 /// thread has not exited yet, return -2
 /// otherwise, return thread's exit code
 pub fn sys_waittid(tid: usize) -> i32 {
+    // debug!("wait start: {}", tid);
     // warn!("wait tid: {}", tid);
     let task = current_task().unwrap();
     let process = task.process.upgrade().unwrap();
@@ -86,6 +89,7 @@ pub fn sys_waittid(tid: usize) -> i32 {
         drop(wtl);
         exit_code
     } else {
+        // debug!("wait end: {}", tid);
         // warn!("wait tid: {} end", tid);
         drop(wtl);
         // waited thread has not exited
