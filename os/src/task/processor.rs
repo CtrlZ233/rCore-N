@@ -74,6 +74,9 @@ impl Processor {
             idle_task_cx_ptr,
             unsafe { &*idle_task_cx_ptr }
         );
+        let heap_ptr = task.process.upgrade().unwrap().acquire_inner_lock().heap_ptr;
+        let entry_point = task.process.upgrade().unwrap().acquire_inner_lock().entry_point;
+        crate::lkm::task_init(entry_point, heap_ptr);
         // acquire
         let process = task.process.upgrade().unwrap();
         let process_inner = process.acquire_inner_lock();

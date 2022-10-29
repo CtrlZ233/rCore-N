@@ -30,6 +30,8 @@ pub struct ProcessControlBlockInner {
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
+    pub heap_ptr: usize,
+    pub entry_point: usize,
 }
 
 impl ProcessControlBlockInner {
@@ -136,8 +138,7 @@ impl ProcessControlBlock {
 
     pub fn new(elf_data: &[u8]) -> Arc<Self> {
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
-        debug!("new space end");
+        let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
         // allocate a pid
         let pid_handle = pid_alloc();
         let process = Arc::new(Self {
@@ -161,17 +162,17 @@ impl ProcessControlBlock {
                     ],
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    heap_ptr, 
+                    entry_point,
                 })
             },
         });
-        debug!("start alloc user resource");
         // create a main thread, we should allocate ustack and trap_cx here
         let task = Arc::new(TaskControlBlock::new(
             Arc::clone(&process),
             ustack_base,
             true,
         ));
-        debug!("alloc user resource end");
         // prepare trap_cx of main thread
         let task_inner = task.acquire_inner_lock();
         let trap_cx = task_inner.get_trap_cx();
@@ -179,7 +180,8 @@ impl ProcessControlBlock {
         let kstack_top = task.kstack.get_top();
         drop(task_inner);
         *trap_cx = TrapContext::app_init_context(
-            entry_point,
+            // entry_point,
+            unsafe{ crate::lkm::UNFI_SCHE_ENTRY },
             ustack_top,
             KERNEL_SPACE.lock().token(),
             kstack_top,
@@ -199,11 +201,15 @@ impl ProcessControlBlock {
     pub fn exec(self: &Arc<Self>, elf_data: &[u8]) {
         assert_eq!(self.acquire_inner_lock().thread_count(), 1);
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
         // substitute memory_set
-        self.acquire_inner_lock().memory_set = memory_set;
-        self.acquire_inner_lock().user_trap_info = None;
+        let process_inner = self.acquire_inner_lock();
+        process_inner.memory_set = memory_set;
+        process_inner.heap_ptr = heap_ptr;
+        process_inner.entry_point = entry_point;
+        process_inner.user_trap_info = None;
+        drop(process_inner);
         // then we alloc user resource for main thread again
         // since memory_set has been changed
         let task = self.acquire_inner_lock().get_task(0);
@@ -214,7 +220,7 @@ impl ProcessControlBlock {
         let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
-            entry_point,
+            unsafe{ crate::lkm::UNFI_SCHE_ENTRY },
             user_sp,
             KERNEL_SPACE.lock().token(),
             task.kstack.get_top(),
@@ -227,11 +233,11 @@ impl ProcessControlBlock {
 
     /// Only support processes with a single thread.
     pub fn fork(self: &Arc<Self>) -> Arc<Self> {
-        debug!("fork start inner");
         let mut parent = self.acquire_inner_lock();
         assert_eq!(parent.thread_count(), 1);
         // clone parent's memory_set completely including trampoline/ustacks/trap_cxs
         let memory_set = MemorySet::from_existed_user(&parent.memory_set);
+        let (heap_ptr, entry_point) = (parent.heap_ptr, parent.entry_point);
         // alloc a pid
         let pid = pid_alloc();
         // copy fd table
@@ -243,19 +249,15 @@ impl ProcessControlBlock {
                 new_fd_table.push(None);
             }
         }
-        debug!("fork start inner2");
 
         let mut user_trap_info: Option<UserTrapInfo> = None;
         if let Some(mut trap_info) = parent.user_trap_info.clone() {
-            debug!("[fork] copy parent trap info");
             trap_info.user_trap_buffer_ppn = memory_set
                 .translate(VirtAddr::from(USER_TRAP_BUFFER).into())
                 .unwrap()
                 .ppn();
             user_trap_info = Some(trap_info);
         }
-
-        debug!("fork start inner3");
 
         // create child process pcb
         let child = Arc::new(Self {
@@ -272,10 +274,11 @@ impl ProcessControlBlock {
                     fd_table: new_fd_table,
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    heap_ptr,
+                    entry_point,
                 })
             },
         });
-        debug!("fork start inner4");
         // add child
         parent.children.push(Arc::clone(&child));
         // create main thread of child process
@@ -292,7 +295,6 @@ impl ProcessControlBlock {
             // but mention that we allocate a new kstack here
             false,
         ));
-        debug!("fork start inner5");
         drop(parent);
         // attach task to child process
         let mut child_inner = child.acquire_inner_lock();
@@ -302,10 +304,8 @@ impl ProcessControlBlock {
         let task_inner = task.acquire_inner_lock();
         let trap_cx = task_inner.get_trap_cx();
         trap_cx.kernel_sp = task.kstack.get_top();
-        debug!("fork start inner6");
         drop(task_inner);
         insert_into_pid2process(child.getpid(), Arc::clone(&child));
-        debug!("fork start inner7");
         child
     }
 

@@ -1,7 +1,7 @@
 mod mail;
 mod pipe;
 mod serial;
-mod stdio;
+pub mod stdio;
 
 use crate::mm::UserBuffer;
 
