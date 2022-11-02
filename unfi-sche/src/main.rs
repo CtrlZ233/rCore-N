@@ -22,9 +22,15 @@ use runtime::Executor;
 use interface::{add_coroutine, run};
 use alloc::boxed::Box;
 use syscall::*;
+use crate::interface::{get_current_coroutine_id, poll_future, wake_coroutine};
+
 mod config;
 
 static mut ENTRY: usize = 0usize;
+
+
+#[link_section = ".bss.interface"]
+pub static mut INTERFACE: [usize; 0x1000 / core::mem::size_of::<usize>()] = [0usize; 0x1000 / core::mem::size_of::<usize>()];
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
@@ -48,6 +54,7 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
 #[no_mangle]
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
+    println!("=====================heap ptr: {:#x}===========================", heapptr);
     let heap = heapptr as *mut usize as *mut MutAllocator<32>;
     let exe = (heapptr + core::mem::size_of::<MutAllocator<32>>()) as *mut usize as *mut Executor;
     unsafe {
@@ -60,13 +67,26 @@ unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 fn primary_thread() {
+    unsafe{
+        INTERFACE[0] = add_coroutine as usize;
+        INTERFACE[1] = poll_future  as usize;
+        INTERFACE[2] = wake_coroutine  as usize;
+        INTERFACE[3] = get_current_coroutine_id as usize;
+        println!("[basic_rt] lib start-----------------------------");
+        // for addr in &INTERFACE {
+        //     if *addr != 0 {
+        //         println!("{:#x}", addr);
+        //     }
+        // }
+        // println!("BASIC_RT_SO GOT addr {:#x}", &mut INTERFACE as *mut usize as usize);
+    }
     println!("hart_id {}", hart_id());
     println!("main thread init ");
     unsafe {
         println!("SECONDARY_ENTER {:#x}", ENTRY);
-        let secondary_init: fn() -> usize = core::mem::transmute(ENTRY);
+        let secondary_init: fn(usize) -> usize = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
-        let main_addr = secondary_init();
+        let main_addr = secondary_init(&mut INTERFACE as *mut usize as usize);
         // let main_entry =  secondary_init();
         let main: fn() -> i32 = core::mem::transmute(main_addr);
         // add_coroutine(Box::pin(test(main_addr)), 0);

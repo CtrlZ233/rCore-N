@@ -24,7 +24,7 @@ const SYSCALL_SET_EXT_INT_ENABLE: usize = 604;
 const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_GETTID: usize = 1001;
 const SYSCALL_WAITTID: usize = 1002;
-
+const SYSCALL_SET_CID_TIMER: usize = 1500;
 mod fs;
 mod process;
 mod thread;
@@ -33,6 +33,7 @@ use crate::trace::{push_trace, TRACE_SYSCALL_ENTER, TRACE_SYSCALL_EXIT};
 use fs::*;
 use process::*;
 pub use crate::syscall::thread::{sys_gettid, sys_thread_create, sys_waittid};
+pub use process::sys_send_msg;
 
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
@@ -58,12 +59,13 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_FLUSH_TRACE => sys_flush_trace(),
         SYSCALL_INIT_USER_TRAP => sys_init_user_trap(),
         SYSCALL_SEND_MSG => sys_send_msg(args[0], args[1]),
-        SYSCALL_SET_TIMER => sys_set_timer(args[0]),
+        SYSCALL_SET_TIMER => sys_set_timer(args[0], -1),
         SYSCALL_CLAIM_EXT_INT => sys_claim_ext_int(args[0]),
         SYSCALL_SET_EXT_INT_ENABLE => sys_set_ext_int_enable(args[0], args[1]),
         SYSCALL_THREAD_CREATE => sys_thread_create(args[0], args[1]),
         SYSCALL_GETTID => sys_gettid(),
         SYSCALL_WAITTID => sys_waittid(args[0]) as isize,
+        SYSCALL_SET_CID_TIMER => sys_set_timer(args[0], args[1] as isize),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
     push_trace(TRACE_SYSCALL_EXIT + syscall_id);

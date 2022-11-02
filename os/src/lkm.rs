@@ -7,6 +7,7 @@ use core::mem::transmute;
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
+use crate::task::current_task;
 
 lazy_static! {
     pub static ref UNFI_SCHE_DATA: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("unfi-sche").unwrap().to_vec());
@@ -45,6 +46,6 @@ pub static mut UNFI_SCHE_ENTRY: usize = 0;
 pub fn task_init(entry: usize, heap_ptr: usize) {
     unsafe {
         let unfi_sche_start: fn(usize, usize) -> usize = transmute(UNFI_SCHE_START);
-        UNFI_SCHE_ENTRY = unfi_sche_start(entry, heap_ptr);
+        unfi_sche_start(entry, heap_ptr);
     }
 }

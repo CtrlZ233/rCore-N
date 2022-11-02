@@ -28,6 +28,9 @@ const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_GETTID: usize = 1001;
 const SYSCALL_WAITTID: usize = 1002;
 
+const SYSCALL_SET_CID_TIMER: usize = 1500;
+
+
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
     unsafe {
@@ -123,6 +126,10 @@ pub fn sys_send_msg(pid: usize, msg: usize) -> isize {
 
 pub fn sys_set_timer(time_us: isize) -> isize {
     syscall(SYSCALL_SET_TIMER, [time_us as usize, 0, 0])
+}
+
+pub fn sys_set_cid_timer(time_us: isize, cid: usize) -> isize {
+    syscall(SYSCALL_SET_CID_TIMER, [time_us as usize, cid, 0])
 }
 
 pub fn sys_claim_ext_int(device_id: usize) -> isize {

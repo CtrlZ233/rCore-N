@@ -16,10 +16,16 @@ extern crate alloc;
 extern crate bitflags;
 
 use alloc::vec::Vec;
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 use syscall::*;
 mod heap;
+mod lkm;
 
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
+pub use lkm::{add_coroutine, poll_future, wake_coroutine, UNFI_SCHE_INTERFACE};
+use crate::lkm::get_current_cid;
 
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
@@ -28,9 +34,11 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() -> usize {
+pub extern "C" fn _start(interface_entry: usize) -> usize {
 // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
-
+    unsafe {
+        UNFI_SCHE_INTERFACE = interface_entry;
+    }
     use riscv::register::{mtvec::TrapMode, utvec};
 
     extern "C" {
@@ -176,6 +184,19 @@ pub fn sleep(period_ms: usize) {
     }
 }
 
+pub async fn sleep_await(period_ms: usize) {
+    let start = get_time();
+    let cid = get_current_cid();
+    set_cid_timer((start + period_ms as isize) * 1000 as isize, cid);
+    let helper = FutureHelper::new();
+    helper.await;
+}
+
+pub async fn async_wake_coroutine(cid: usize) {
+    println!("wake tid: {}", cid);
+    wake_coroutine(cid);
+}
+
 pub fn mailread(buf: &mut [u8]) -> isize {
     sys_mailread(buf)
 }
@@ -198,6 +219,10 @@ pub fn send_msg(pid: usize, msg: usize) -> isize {
 
 pub fn set_timer(time_us: isize) -> isize {
     sys_set_timer(time_us)
+}
+
+pub fn set_cid_timer(time_us: isize, cid: usize) {
+    sys_set_cid_timer(time_us, cid);
 }
 
 pub fn claim_ext_int(device_id: usize) -> isize {
@@ -223,5 +248,29 @@ pub fn waittid(tid: usize) -> isize {
             }
             exit_code => return exit_code,
         }
+    }
+}
+
+struct FutureHelper {
+    count: usize,
+}
+
+impl FutureHelper {
+    pub fn new() -> Self {
+        Self {
+            count: 0,
+        }
+    }
+}
+
+impl Future for FutureHelper {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.count == 0 {
+            self.count += 1;
+            return Poll::Pending
+        }
+        return Poll::Ready(())
     }
 }

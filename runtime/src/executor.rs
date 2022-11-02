@@ -24,6 +24,7 @@ pub struct Executor {
     pub block_queue: Vec<CoroutineId>,
     pub waker_cache: BTreeMap<CoroutineId, Arc<Waker>>,
     pub lock: AtomicBool,
+    pub current: Option<CoroutineId>,
 }
 
 impl Executor {
@@ -34,6 +35,7 @@ impl Executor {
             block_queue: Vec::new(),
             waker_cache: BTreeMap::new(),
             lock: AtomicBool::new(false),
+            current: None
         }
     }
 
@@ -55,13 +57,16 @@ impl Executor {
         for i in 0..PRIO_NUM {
             if !self.ready_queue[i].is_empty() {
                 let cid = self.ready_queue[i].remove(0);
+                self.current = Some(cid);
                 return self.get_task(&cid);
             }
         }
         if !self.block_queue.is_empty() {
             let cid = self.block_queue.remove(0);
+            self.current = Some(cid);
             return self.get_task(&cid);
         }
+        self.current = None;
         return None;
     }
 
@@ -80,7 +85,11 @@ impl Executor {
         self.waker_cache.remove(&cid);
     }
 
-    pub fn block_task(&mut self, cid: CoroutineId) {
-        self.block_queue.push(cid);
+    pub fn block_task(&mut self, cid: usize) {
+        self.block_queue.push(CoroutineId(cid));
+    }
+
+    pub fn get_current_id(&self) -> CoroutineId {
+        self.current.unwrap()
     }
 }

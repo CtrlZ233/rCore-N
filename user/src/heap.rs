@@ -25,7 +25,7 @@ static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];
 
 /// 初始化全局分配器和内核堆分配器。
 pub fn init() {
-    println!("heap {:#x}", unsafe{ &mut HEAP as *mut MutAllocator<32> as usize });
+    println!("[user] heap {:#x}", unsafe{ &mut HEAP as *mut MutAllocator<32> as usize });
     println!("heap {:#x}", core::mem::size_of::<MutAllocator<32>>());
     println!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
     println!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
