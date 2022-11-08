@@ -5,57 +5,62 @@ use core::future::Future;
 use core::task::{Poll, Context};
 use alloc::sync::Arc;
 use crate::executor::EXECUTOR;
-use crate::thread::Thread;
-use runtime::Coroutine;
+use crate::thread::{Thread, ThreadContext};
+use runtime::{Coroutine, CoroutineId, PRIO_NUM, TaskWaker};
 use spin::Mutex;
-use crate::syscall::*;
+use crate::{syscall::*, hart_id, primary_thread};
 
 #[no_mangle]
-#[inline(never)]
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-    let task = Arc::new(Coroutine::spawn(Mutex::new(future), prio));
-    unsafe{ EXECUTOR.as_mut().unwrap().add_coroutine(task); }
-    println!("add task ok");
+    unsafe {
+        let ex = EXECUTOR[hart_id()].as_mut().unwrap();
+        ex.add_coroutine(future, prio);
+    }
 }
 
 #[no_mangle]
-pub fn run(){
-    let ex = unsafe { EXECUTOR.as_mut().unwrap() };
-    if ex.is_empty() { sys_exit(0); }
-    let mut thread = Thread::new();
-    thread.execute();
-}
-
-#[no_mangle]
-pub fn poll_future() {
-    let ex = unsafe { EXECUTOR.as_mut().unwrap() };
-    let task = ex.fetch();
-    if task.is_none() { unreachable!("task is none"); }
-    println!("run coroutine {}", task.clone().unwrap().cid.0);
-    let waker = ex.get_waker(task.clone().unwrap().cid, task.clone().unwrap().prio);
-
-    // creat Context
-    let mut context = Context::from_waker(&*waker);
-    match task.clone().unwrap().future.lock().as_mut().poll(&mut context) {
-        Poll::Pending => {  }
-        Poll::Ready(()) => {
-            // remove task
-            ex.del_task(task.clone().unwrap().cid);
+pub fn poll_future(a0: usize) {
+    loop {
+        let ex = unsafe { EXECUTOR[hart_id()].as_mut().unwrap() };
+        if ex.is_empty() {
+            println!("ex is empty");
+            break;
         }
-    };
-    println!("yield thread");
-    yield_thread();
+        let (task, waker) = ex.fetch();
+        let cid = task.unwrap().cid;
+        let mut context = Context::from_waker(&*waker.unwrap());
+        let mut can_delete = false;
+        match task.unwrap().future.lock().as_mut().poll(&mut context) {
+            Poll::Pending => {  }
+            Poll::Ready(()) => {
+                can_delete = true;
+            }
+        };
+        if can_delete {
+            ex.del_coroutine(cid);
+        }
+    }
+    yield_thread(a0);
 }
 
-pub fn yield_thread() {
-    let sp_ptr = 1usize << 38;
+pub fn yield_thread(ctx_addr: usize) {
     unsafe {
         core::arch::asm!(
-            "mv sp, {sp_ptr}",
-            "ld ra, {run}",
-            "ret",
-            sp_ptr = in(reg) sp_ptr,
-            run = sym run,
+        r"  .altmacro
+            .macro LOAD_SN n
+                ld s\n, (\n+2)*8(a0)
+            .endm
+            
+            mv a0, {a0}
+            ld ra, 0(a0)
+            .set n, 0
+            .rept 12
+                LOAD_SN %n
+                .set n, n + 1
+            .endr
+            ld sp, 8(a0)
+            ret",
+            a0  = in(reg) ctx_addr,
             options(noreturn)
         )
     }

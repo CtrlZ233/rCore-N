@@ -12,7 +12,7 @@ use spin::Mutex;
 pub struct CoroutineId(pub usize);
 
 impl CoroutineId {
-    pub(crate) fn generate() -> CoroutineId {
+    pub fn generate() -> CoroutineId {
         // 任务编号计数器，任务编号自增
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let id = COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -40,17 +40,5 @@ pub struct Coroutine{
     pub cid: CoroutineId,
     // future
     pub future: Mutex<Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>>, 
-
     pub prio: usize,
-}
-
-impl Coroutine{
-    //创建一个协程
-    pub fn spawn(future: Mutex<Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>>, prio: usize) -> Self{
-        Coroutine{
-            cid: CoroutineId::generate(),
-            future,
-            prio,
-        }
-    }
 }
