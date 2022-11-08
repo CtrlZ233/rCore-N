@@ -20,7 +20,7 @@ extern crate alloc;
 use config::CPU_NUM;
 use heap::MutAllocator;
 use runtime::Executor;
-use interface::{add_coroutine, run, poll_future};
+use interface::{add_coroutine, poll_future};
 use alloc::boxed::Box;
 use syscall::*;
 use thread::Thread;
