@@ -16,9 +16,9 @@ lazy_static! {
 }
 
 pub fn init(){
-    crate::println!("lkm init");
+    // crate::println!("lkm init");
     add_lkm_image();
-    crate::println!("lkm init done");
+    // crate::println!("lkm init done");
 }
 
 fn add_lkm_image(){

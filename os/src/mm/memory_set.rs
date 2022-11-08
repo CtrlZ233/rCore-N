@@ -491,7 +491,7 @@ impl MemorySet {
     }
     pub fn add_kernel_module(&mut self, module_space: &MemorySet) {
         for area in module_space.areas.iter() {
-            crate::println!("addr {:#x?} - {:#x?}", area.vpn_range.get_start(), area.vpn_range.get_end());
+            // crate::println!("addr {:#x?} - {:#x?}", area.vpn_range.get_start(), area.vpn_range.get_end());
             for vpn in area.vpn_range {
                 // println!("ppn {:#x?}", module_space.translate(vpn).unwrap().ppn());
                 self.page_table.map(

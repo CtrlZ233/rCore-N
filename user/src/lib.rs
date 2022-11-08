@@ -18,6 +18,8 @@ extern crate bitflags;
 use alloc::vec::Vec;
 use syscall::*;
 mod heap;
+use core::{future::Future, pin::Pin};
+use alloc::boxed::Box;
 
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
 
@@ -28,19 +30,19 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() -> usize {
+pub extern "C" fn _start(add_coroutine_addr: usize) {
 // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
-
     use riscv::register::{mtvec::TrapMode, utvec};
-
     extern "C" {
         fn __alltraps_u();
     }
     unsafe {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
+        ADD_COROUTINE_ADDR = add_coroutine_addr;
     }
-
     heap::init();
+    // main();
+    add_coroutine(Box::pin(async{ main(); }), 0);
 
     // let mut v: Vec<&'static str> = Vec::new();
     // for i in 0..argc {
@@ -57,8 +59,17 @@ pub extern "C" fn _start() -> usize {
     //     );
     // }
     // exit(main());
-    main as usize
-    // main as usize
+}
+
+static mut ADD_COROUTINE_ADDR: usize = 0;
+
+// 用户态添加协程
+pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
+    unsafe {
+        let add_coroutine_fn: fn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize) = 
+            core::mem::transmute(ADD_COROUTINE_ADDR);
+        add_coroutine_fn(future, prio);
+    }
 }
 
 #[linkage = "weak"]
