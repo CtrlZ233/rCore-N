@@ -61,16 +61,16 @@ impl Executor {
     pub fn fetch(&mut self) -> (Option<&Arc<Coroutine>>, Option<&Arc<Waker>>) {
         let mut task = None;
         let mut waker = None;
+        let lock = self.lock.lock();
         for i in 0..PRIO_NUM {
             if !self.ready_queue[i].is_empty() {
-                let lock = self.lock.lock();
                 let cid = self.ready_queue[i].pop_front().unwrap();
                 task = self.tasks.get(&cid);
                 waker = self.waker_cache.get(&cid);
-                drop(lock);
                 break;
             }
         }
+        drop(lock);
         (task, waker)
     }
 
