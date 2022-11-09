@@ -8,6 +8,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};
+use crate::println;
 use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;
 use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
@@ -202,6 +203,7 @@ impl ProcessControlBlock {
         assert_eq!(self.acquire_inner_lock().thread_count(), 1);
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
+        debug!("entry_point: {}", entry_point);
         let new_token = memory_set.token();
         // substitute memory_set
         let mut process_inner = self.acquire_inner_lock();
@@ -226,7 +228,6 @@ impl ProcessControlBlock {
             task.kstack.get_top(),
             trap_handler as usize,
         );
-        crate::lkm::task_init(entry_point, heap_ptr);
         // trap_cx.x[10] = args.len();
         // trap_cx.x[11] = argv_base;
         *task_inner.get_trap_cx() = trap_cx;

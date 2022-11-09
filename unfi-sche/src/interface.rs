@@ -12,17 +12,17 @@ use crate::{syscall::*, hart_id, primary_thread};
 
 #[no_mangle]
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-    unsafe { EXECUTOR[hart_id()].as_mut().unwrap() }.add_coroutine(future, prio);
+    unsafe { EXECUTOR.as_mut().unwrap() }.add_coroutine(future, prio);
 }
 
 #[no_mangle]
 pub fn poll_future(a0: usize) {
     loop {
-        if unsafe { EXECUTOR[hart_id()].as_mut().unwrap() }.is_empty() {
+        if unsafe { EXECUTOR.as_mut().unwrap() }.is_empty() {
             println!("ex is empty");
             break;
         }
-        let (task, waker) = unsafe { EXECUTOR[hart_id()].as_mut().unwrap() }.fetch();
+        let (task, waker) = unsafe { EXECUTOR.as_mut().unwrap() }.fetch();
         let cid = task.unwrap().cid;
         let mut context = Context::from_waker(&*waker.unwrap());
         let mut can_delete = false;
@@ -33,7 +33,7 @@ pub fn poll_future(a0: usize) {
             }
         };
         if can_delete {
-            unsafe { EXECUTOR[hart_id()].as_mut().unwrap() }.del_coroutine(cid);
+            unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
         }
     }
     yield_thread(a0);

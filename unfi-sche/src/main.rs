@@ -4,7 +4,7 @@
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(allocator_api)]
-
+#![feature(asm_sym)]
 
 #[macro_use]
 mod console;
@@ -24,9 +24,11 @@ use interface::{add_coroutine, poll_future};
 use alloc::boxed::Box;
 use syscall::*;
 use thread::Thread;
+use crate::config::{ENTRY, UNFI_SCHE_BUFFER};
+
 mod config;
 
-static mut ENTRY: [usize; CPU_NUM] = [0usize; CPU_NUM];
+// static mut ENTRY: [usize; CPU_NUM] = [0usize; CPU_NUM];
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
@@ -49,13 +51,13 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
 /// _start() 函数由内核跳转执行，在每次执行线程之前需要由内核调用一次，设置默认的堆
 #[no_mangle]
 #[link_section = ".text.entry"]
-unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
+unsafe extern "C" fn _start() -> usize {
+    let heapptr = UNFI_SCHE_BUFFER;
     let heap = heapptr as *mut usize as *mut MutAllocator<32>;
     let exe = (heapptr + core::mem::size_of::<MutAllocator<32>>()) as *mut usize as *mut Executor;
     unsafe {
         heap::init(&mut *heap);
         executor::init(&mut *exe);
-        ENTRY[hart_id()] = entry;
     }
     primary_thread as usize
 }
@@ -63,7 +65,7 @@ unsafe extern "C" fn _start(entry: usize, heapptr: usize) -> usize {
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 fn primary_thread() {
     unsafe {
-        let secondary_init: fn(usize) = core::mem::transmute(ENTRY[hart_id()]);
+        let secondary_init: fn(usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
         secondary_init(add_coroutine as usize);
     }

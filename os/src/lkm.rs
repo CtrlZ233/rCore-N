@@ -17,7 +17,9 @@ lazy_static! {
 
 pub fn init(){
     // crate::println!("lkm init");
+    debug!("lkm init");
     add_lkm_image();
+    debug!("lkm init done");
     // crate::println!("lkm init done");
 }
 
@@ -26,13 +28,14 @@ fn add_lkm_image(){
     KERNEL_SPACE.lock().add_kernel_module(&UNFI_SCHE_MEMORYSET);
 
     KERNEL_SPACE.lock().activate();
-
+    debug!("unfi init");
     // 执行共享调度器的_start() 函数
     unsafe {
-        let unfi_sche_start: fn(usize, usize) -> usize = transmute(UNFI_SCHE_START);
-        UNFI_SCHE_ENTRY = unfi_sche_start(0, 0);
+        let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
+        UNFI_SCHE_ENTRY = unfi_sche_start();
         // crate::println!("primary init addr {:#x}", unfi_sche_start(0, 0));
     }
+    debug!("unfi init done");
 
 }
 
@@ -44,7 +47,7 @@ pub static mut UNFI_SCHE_ENTRY: usize = 0;
 
 pub fn task_init(entry: usize, heap_ptr: usize) {
     unsafe {
-        let unfi_sche_start: fn(usize, usize) -> usize = transmute(UNFI_SCHE_START);
-        UNFI_SCHE_ENTRY = unfi_sche_start(entry, heap_ptr);
+        let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
+        UNFI_SCHE_ENTRY = unfi_sche_start();
     }
 }

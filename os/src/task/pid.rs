@@ -63,7 +63,7 @@ impl Drop for PidHandle {
 
 /// Return (bottom, top) of a kernel stack in kernel space.
 pub fn kernel_stack_position(kstack_id: usize) -> (usize, usize) {
-    let top = TRAMPOLINE - kstack_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
+    let top = TRAP_CONTEXT - kstack_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
     let bottom = top - KERNEL_STACK_SIZE;
     (bottom, top)
 }
