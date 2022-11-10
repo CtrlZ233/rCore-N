@@ -68,7 +68,6 @@ impl Executor {
                 return (Some(task), Some(waker))
             }
         }
-        drop(lock);
         (None, None)
     }
 

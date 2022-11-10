@@ -30,16 +30,12 @@ pub fn poll_future(a0: usize) {
                 sleep(10);
                 let cid = task.cid;
                 let mut context = Context::from_waker(&*waker);
-                let mut can_delete = false;
                 match task.future.lock().as_mut().poll(&mut context) {
                     Poll::Pending => {  }
                     Poll::Ready(()) => {
-                        can_delete = true;
+                        unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
                     }
                 };
-                if can_delete {
-                    unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
-                }
             }
             (_, _) => {
                 println!("ex is emtpy");
