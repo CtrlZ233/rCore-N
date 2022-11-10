@@ -2,7 +2,7 @@ use super::{frame_alloc, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
-use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
+use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, TRAP_CONTEXT, UNFI_SCHE_BUFFER, USER_STACK_SIZE};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -11,6 +11,7 @@ use lazy_static::*;
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 use spin::Mutex;
+use crate::mm::translate_writable_va;
 
 extern "C" {
     fn stext();
@@ -79,12 +80,21 @@ impl MemorySet {
         }
         self.areas.push(map_area);
     }
+
     /// Mention that trampoline is not collected by areas.
     fn map_trampoline(&mut self) {
         self.page_table.map(
             VirtAddr::from(TRAMPOLINE).into(),
             PhysAddr::from(strampoline as usize).into(),
             PTEFlags::R | PTEFlags::X,
+        );
+    }
+
+    fn map_unfi_sche_buffer(&mut self, ppa: PhysAddr) {
+        self.page_table.map(
+            VirtAddr::from(UNFI_SCHE_BUFFER).into(),
+            PhysPageNum::from(ppa).into(),
+            PTEFlags::R | PTEFlags::W | PTEFlags::U
         );
     }
     /// Without kernel stacks.
@@ -259,12 +269,17 @@ impl MemorySet {
             ),
             None,
         );
-        unsafe { asm!("fence.i") }
+        debug!("map unfi_sche buffer: {:#x}", UNFI_SCHE_BUFFER);
+        let data_section_vir_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
+        let data_section_phy_addr = memory_set.page_table.translate_va(VirtAddr::from(data_section_vir_addr)).unwrap();
+        memory_set.map_unfi_sche_buffer(data_section_phy_addr);
+        debug!("map unfi_sche buffer done");
+            unsafe { asm!("fence.i") }
         (
             memory_set,
             user_stack_bottom,
             elf.header.pt2.entry_point() as usize,
-            elf.find_section_by_name(".data").unwrap().address() as usize
+            data_section_vir_addr
         )
     }
     pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {
@@ -456,6 +471,7 @@ impl MemorySet {
         let mut memory_set = Self::new_bare();
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
+        debug!("module entry: {:#x}", elf.header.pt2.entry_point() as usize);
         let elf_header = elf.header;
         let magic = elf_header.pt1.magic;
         assert_eq!(magic, [0x7f, 0x45, 0x4c, 0x46], "invalid elf!");
@@ -501,6 +517,16 @@ impl MemorySet {
                 );
             }
         }
+
+        self.push(
+            MapArea::new(
+                UNFI_SCHE_BUFFER.into(),
+                (UNFI_SCHE_BUFFER + PAGE_SIZE).into(),
+                MapType::Framed,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
     }
     pub fn add_user_module(&mut self, module_space: &MemorySet) {
         for area in module_space.areas.iter() {
