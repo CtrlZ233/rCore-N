@@ -18,7 +18,7 @@ pub fn main() -> i32 {
             add_coroutine(Box::pin(test()), 1);
         }
     }
-    sleep(100);
+    // sleep(100);
     0
 }
 

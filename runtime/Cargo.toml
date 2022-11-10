@@ -6,4 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spin = "0.9.4"
+spin = { version = "0.9", features = ["use_ticket_mutex"] }

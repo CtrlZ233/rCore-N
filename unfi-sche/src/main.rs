@@ -22,6 +22,8 @@ use heap::MutAllocator;
 use runtime::Executor;
 use interface::{add_coroutine, poll_future};
 use alloc::boxed::Box;
+use alloc::vec;
+use spin::Mutex;
 use syscall::*;
 use thread::Thread;
 use crate::config::{ENTRY, UNFI_SCHE_BUFFER};
@@ -53,10 +55,10 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start() -> usize {
     let heapptr = UNFI_SCHE_BUFFER;
-    let heap = heapptr as *mut usize as *mut MutAllocator<32>;
-    let exe = (heapptr + core::mem::size_of::<MutAllocator<32>>()) as *mut usize as *mut Executor;
+    let heap = heapptr as *mut usize as *mut Mutex<MutAllocator<32>>;
+    let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
     unsafe {
-        heap::init(&mut *heap);
+        heap::init(& *heap);
         executor::init(&mut *exe);
     }
     primary_thread as usize
@@ -70,8 +72,22 @@ fn primary_thread() {
         secondary_init(add_coroutine as usize);
     }
     // 主线程，在这里创建执行协程的线程，之后再进行控制
-    let mut thread = Thread::new();
-    thread.execute();
+    // let mut thread = Thread::new();
+    // thread.execute();
+    let mut wait_tid = vec![];
+    let max_len = 5;
+    let pid = sys_getpid();
+    if pid != 0 {
+        for _ in 0..max_len {
+            wait_tid.push(sys_thread_create(poll_future as usize, 0));
+        }
+    }
+
+    poll_future(0);
+    //
+    for tid in wait_tid.iter() {
+        waittid(*tid as usize);
+    }
     sys_exit(0);
 }
 

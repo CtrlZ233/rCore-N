@@ -1,8 +1,9 @@
 
 use alloc::boxed::Box;
+use alloc::collections::{BTreeMap, BTreeSet};
 use core::pin::Pin;
 use core::future::Future;
-use core::task::{Poll, Context};
+use core::task::{Poll, Context, Waker};
 use alloc::sync::Arc;
 use crate::executor::EXECUTOR;
 use crate::thread::{Thread, ThreadContext};
@@ -12,31 +13,41 @@ use crate::{syscall::*, hart_id, primary_thread};
 
 #[no_mangle]
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
+    println!("add");
     unsafe { EXECUTOR.as_mut().unwrap() }.add_coroutine(future, prio);
+    println!("add end");
 }
 
 #[no_mangle]
 pub fn poll_future(a0: usize) {
+    let tid = sys_gettid();
+    if tid != 0 {
+        sleep(50);
+    }
     loop {
-        if unsafe { EXECUTOR.as_mut().unwrap() }.is_empty() {
-            println!("ex is empty");
-            break;
-        }
-        let (task, waker) = unsafe { EXECUTOR.as_mut().unwrap() }.fetch();
-        let cid = task.unwrap().cid;
-        let mut context = Context::from_waker(&*waker.unwrap());
-        let mut can_delete = false;
-        match task.unwrap().future.lock().as_mut().poll(&mut context) {
-            Poll::Pending => {  }
-            Poll::Ready(()) => {
-                can_delete = true;
+        match unsafe {EXECUTOR.as_mut().unwrap().fetch()} {
+            (Some(task), Some(waker)) => {
+                sleep(10);
+                let cid = task.cid;
+                let mut context = Context::from_waker(&*waker);
+                match task.future.lock().as_mut().poll(&mut context) {
+                    Poll::Pending => {  }
+                    Poll::Ready(()) => {
+                        unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
+                    }
+                };
             }
-        };
-        if can_delete {
-            unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
+            (_, _) => {
+                println!("ex is emtpy");
+                break;
+            }
         }
     }
-    yield_thread(a0);
+    if tid != 0 {
+        sys_exit(2);
+    }
+    sleep(1000);
+    // yield_thread(a0);
 }
 
 pub fn yield_thread(ctx_addr: usize) {

@@ -18,7 +18,7 @@ pub struct Executor {
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
     pub ready_queue: Vec<VecDeque<CoroutineId>>,
     pub waker_cache: BTreeMap<CoroutineId, Arc<Waker>>,
-    pub lock: Mutex<()>,
+    pub lock: Mutex<usize>,
 }
 
 impl Executor {
@@ -27,7 +27,7 @@ impl Executor {
             tasks: BTreeMap::new(),
             ready_queue: Vec::new(),
             waker_cache: BTreeMap::new(),
-            lock: Mutex::new(()),
+            lock: Mutex::new(0),
         }
     }
 }
@@ -58,20 +58,17 @@ impl Executor {
         return true;
     }
 
-    pub fn fetch(&mut self) -> (Option<&Arc<Coroutine>>, Option<&Arc<Waker>>) {
-        let mut task = None;
-        let mut waker = None;
+    pub fn fetch(&mut self) -> (Option<Arc<Coroutine>>, Option<Arc<Waker>>) {
         let lock = self.lock.lock();
         for i in 0..PRIO_NUM {
             if !self.ready_queue[i].is_empty() {
                 let cid = self.ready_queue[i].pop_front().unwrap();
-                task = self.tasks.get(&cid);
-                waker = self.waker_cache.get(&cid);
-                break;
+                let task = (*self.tasks.get(&cid).unwrap()).clone();
+                let waker = (*self.waker_cache.get(&cid).unwrap()).clone();
+                return (Some(task), Some(waker))
             }
         }
-        drop(lock);
-        (task, waker)
+        (None, None)
     }
 
     pub fn del_coroutine(&mut self, cid: CoroutineId) {
