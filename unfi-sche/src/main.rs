@@ -23,6 +23,7 @@ use runtime::Executor;
 use interface::{add_coroutine, poll_future};
 use alloc::boxed::Box;
 use alloc::vec;
+use spin::Mutex;
 use syscall::*;
 use thread::Thread;
 use crate::config::{ENTRY, UNFI_SCHE_BUFFER};
@@ -54,10 +55,10 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start() -> usize {
     let heapptr = UNFI_SCHE_BUFFER;
-    let heap = heapptr as *mut usize as *mut MutAllocator<32>;
-    let exe = (heapptr + core::mem::size_of::<MutAllocator<32>>()) as *mut usize as *mut Executor;
+    let heap = heapptr as *mut usize as *mut Mutex<MutAllocator<32>>;
+    let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
     unsafe {
-        heap::init(&mut *heap);
+        heap::init(& *heap);
         executor::init(&mut *exe);
     }
     primary_thread as usize
