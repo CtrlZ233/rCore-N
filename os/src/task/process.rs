@@ -31,8 +31,6 @@ pub struct ProcessControlBlockInner {
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
-    pub heap_ptr: usize,
-    pub entry_point: usize,
 }
 
 impl ProcessControlBlockInner {
@@ -163,8 +161,6 @@ impl ProcessControlBlock {
                     ],
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    heap_ptr, 
-                    entry_point,
                 })
             },
         });
@@ -208,8 +204,6 @@ impl ProcessControlBlock {
         // substitute memory_set
         let mut process_inner = self.acquire_inner_lock();
         process_inner.memory_set = memory_set;
-        process_inner.heap_ptr = heap_ptr;
-        process_inner.entry_point = entry_point;
         process_inner.user_trap_info = None;
         drop(process_inner);
         // then we alloc user resource for main thread again
@@ -239,7 +233,6 @@ impl ProcessControlBlock {
         assert_eq!(parent.thread_count(), 1);
         // clone parent's memory_set completely including trampoline/ustacks/trap_cxs
         let memory_set = MemorySet::from_existed_user(&parent.memory_set);
-        let (heap_ptr, entry_point) = (parent.heap_ptr, parent.entry_point);
         // alloc a pid
         let pid = pid_alloc();
         // copy fd table
@@ -276,8 +269,6 @@ impl ProcessControlBlock {
                     fd_table: new_fd_table,
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    heap_ptr,
-                    entry_point,
                 })
             },
         });
