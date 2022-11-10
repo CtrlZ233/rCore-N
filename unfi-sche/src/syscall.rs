@@ -23,6 +23,10 @@ const SYSCALL_SET_TIMER: usize = 602;
 const SYSCALL_CLAIM_EXT_INT: usize = 603;
 const SYSCALL_SET_EXT_INT_ENABLE: usize = 604;
 
+const SYSCALL_THREAD_CREATE: usize = 1000;
+const SYSCALL_GETTID: usize = 1001;
+const SYSCALL_WAITTID: usize = 1002;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct TimeVal {
@@ -139,4 +143,48 @@ pub fn sys_claim_ext_int(device_id: usize) -> isize {
 
 pub fn sys_set_ext_int_enable(device_id: usize, enable: usize) -> isize {
     syscall(SYSCALL_SET_EXT_INT_ENABLE, [device_id as usize, enable, 0])
+}
+
+pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
+    syscall(SYSCALL_THREAD_CREATE, [entry, arg, 0])
+}
+
+pub fn sys_gettid() -> isize {
+    syscall(SYSCALL_GETTID, [0; 3])
+}
+
+pub fn sys_waittid(tid: usize) -> isize {
+    syscall(SYSCALL_WAITTID, [tid, 0, 0])
+}
+
+
+// lib
+pub fn waittid(tid: usize) -> isize {
+    loop {
+        match sys_waittid(tid) {
+            -2 => {
+                yield_();
+            }
+            exit_code => return exit_code,
+        }
+    }
+}
+
+pub fn yield_() -> isize {
+    sys_yield()
+}
+
+pub fn sleep(period_ms: usize) {
+    let start = get_time();
+    while get_time() < start + period_ms as isize {
+        // sys_yield();
+    }
+}
+
+pub fn get_time() -> isize {
+    let time = TimeVal::new();
+    match sys_get_time(&time, 0) {
+        0 => ((time.sec & 0xffff) * 1000 + time.usec / 1000) as isize,
+        _ => -1,
+    }
 }

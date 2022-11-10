@@ -18,7 +18,7 @@ pub struct Executor {
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
     pub ready_queue: Vec<VecDeque<CoroutineId>>,
     pub waker_cache: BTreeMap<CoroutineId, Arc<Waker>>,
-    pub lock: Mutex<()>,
+    pub lock: Mutex<usize>,
 }
 
 impl Executor {
@@ -27,7 +27,7 @@ impl Executor {
             tasks: BTreeMap::new(),
             ready_queue: Vec::new(),
             waker_cache: BTreeMap::new(),
-            lock: Mutex::new(()),
+            lock: Mutex::new(0),
         }
     }
 }

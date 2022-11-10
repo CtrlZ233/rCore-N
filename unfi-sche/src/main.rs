@@ -22,6 +22,7 @@ use heap::MutAllocator;
 use runtime::Executor;
 use interface::{add_coroutine, poll_future};
 use alloc::boxed::Box;
+use alloc::vec;
 use syscall::*;
 use thread::Thread;
 use crate::config::{ENTRY, UNFI_SCHE_BUFFER};
@@ -70,8 +71,22 @@ fn primary_thread() {
         secondary_init(add_coroutine as usize);
     }
     // 主线程，在这里创建执行协程的线程，之后再进行控制
-    let mut thread = Thread::new();
-    thread.execute();
+    // let mut thread = Thread::new();
+    // thread.execute();
+    let mut wait_tid = vec![];
+    let max_len = 5;
+    let pid = sys_getpid();
+    if pid != 0 {
+        for _ in 0..max_len {
+            wait_tid.push(sys_thread_create(poll_future as usize, 0));
+        }
+    }
+
+    poll_future(0);
+    //
+    for tid in wait_tid.iter() {
+        waittid(*tid as usize);
+    }
     sys_exit(0);
 }
 

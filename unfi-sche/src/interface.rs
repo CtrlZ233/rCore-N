@@ -1,5 +1,6 @@
 
 use alloc::boxed::Box;
+use alloc::collections::{BTreeMap, BTreeSet};
 use core::pin::Pin;
 use core::future::Future;
 use core::task::{Poll, Context};
@@ -17,12 +18,17 @@ pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sy
 
 #[no_mangle]
 pub fn poll_future(a0: usize) {
+    let tid = sys_gettid();
+    if tid != 0 {
+        sleep(50);
+    }
     loop {
-        if unsafe { EXECUTOR.as_mut().unwrap() }.is_empty() {
-            println!("ex is empty");
+        let (task, waker) = unsafe { EXECUTOR.as_mut().unwrap() }.fetch();
+        if task.is_none() || waker.is_none() {
+            println!("ex is emtpy");
             break;
         }
-        let (task, waker) = unsafe { EXECUTOR.as_mut().unwrap() }.fetch();
+        sleep(10);
         let cid = task.unwrap().cid;
         let mut context = Context::from_waker(&*waker.unwrap());
         let mut can_delete = false;
@@ -36,7 +42,11 @@ pub fn poll_future(a0: usize) {
             unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
         }
     }
-    yield_thread(a0);
+    if tid != 0 {
+        sys_exit(2);
+    }
+    sleep(1000);
+    // yield_thread(a0);
 }
 
 pub fn yield_thread(ctx_addr: usize) {
