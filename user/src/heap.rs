@@ -26,9 +26,9 @@ static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];
 
 /// 初始化全局分配器和内核堆分配器。
 pub fn init() {
-    println!("heap {:#x}", unsafe{ &mut HEAP as *mut Mutex<MutAllocator<32>> as usize });
-    println!("heap {:#x}", core::mem::size_of::<Mutex<MutAllocator<32>>>());
-    println!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
+    // println!("heap {:#x}", unsafe{ &mut HEAP as *mut Mutex<MutAllocator<32>> as usize });
+    // println!("heap {:#x}", core::mem::size_of::<Mutex<MutAllocator<32>>>());
+    // println!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
     // println!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
 
     unsafe {
@@ -40,6 +40,7 @@ pub fn init() {
     }
     unsafe {
         EXECUTOR.ready_queue = vec![VecDeque::new(); runtime::PRIO_NUM];
+        EXECUTOR.callback_queue = Vec::with_capacity(runtime::CBQ_MAX);
     }
 }
 

@@ -7,15 +7,15 @@ use core::task::{Poll, Context, Waker};
 use alloc::sync::Arc;
 use crate::executor::EXECUTOR;
 use crate::thread::{Thread, ThreadContext};
-use runtime::{Coroutine, CoroutineId, PRIO_NUM, TaskWaker};
+use runtime::{Coroutine, CoroutineId, PRIO_NUM};
 use spin::Mutex;
 use crate::{syscall::*, hart_id, primary_thread};
 
 #[no_mangle]
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-    println!("add");
+    // println!("add");
     unsafe { EXECUTOR.as_mut().unwrap() }.add_coroutine(future, prio);
-    println!("add end");
+    // println!("add end");
 }
 
 #[no_mangle]
@@ -26,18 +26,17 @@ pub fn poll_future(a0: usize) {
     }
     loop {
         match unsafe {EXECUTOR.as_mut().unwrap().fetch()} {
-            (Some(task), Some(waker)) => {
+            Some(task) => {
                 sleep(10);
                 let cid = task.cid;
-                let mut context = Context::from_waker(&*waker);
-                match task.future.lock().as_mut().poll(&mut context) {
+                match task.execute() {
                     Poll::Pending => {  }
                     Poll::Ready(()) => {
                         unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
                     }
                 };
             }
-            (_, _) => {
+            _ => {
                 println!("ex is emtpy");
                 break;
             }

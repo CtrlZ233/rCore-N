@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 spin = { version = "0.9", features = ["use_ticket_mutex"] }
+bit_field = "0.9.0"
