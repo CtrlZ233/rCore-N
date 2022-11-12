@@ -6,10 +6,13 @@ mod coroutine;
 mod task_waker;
 mod executor;
 mod config;
+mod bitmap;
 
 extern crate alloc;
 
 pub use executor::Executor;
 pub use coroutine::{CoroutineId, Coroutine};
 pub use config::PRIO_NUM;
-pub use task_waker::TaskWaker;
+pub use config::CBQ_MAX;
+use bitmap::BitMap;
+// pub use task_waker::TaskWaker;

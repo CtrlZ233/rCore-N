@@ -25,7 +25,7 @@ struct Global;
 unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        println!("alloc something");
+        // println!("alloc something");
         if let Ok((ptr, _)) = HEAP.as_mut().unwrap().lock().allocate_layout::<u8>(layout) {
             ptr.as_ptr()
         } else {
