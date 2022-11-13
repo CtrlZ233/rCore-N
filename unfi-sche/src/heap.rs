@@ -3,7 +3,6 @@ use core::{
     ptr::NonNull,
 };
 use alloc::alloc::handle_alloc_error;
-use crate::{config::CPU_NUM, hart_id};
 use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
 use spin::Mutex;
 

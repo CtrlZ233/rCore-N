@@ -32,7 +32,7 @@ fn add_lkm_image(){
     // 执行共享调度器的_start() 函数
     unsafe {
         let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
-        UNFI_SCHE_ENTRY = unfi_sche_start();
+        UNFI_INTERFACE_PTR = unfi_sche_start();
         // crate::println!("primary init addr {:#x}", unfi_sche_start(0, 0));
     }
     debug!("unfi init done");
@@ -42,12 +42,22 @@ fn add_lkm_image(){
 
 pub const UNFI_SCHE_START: usize = 0x96000000usize;
 
-// 线程第一次进入用户态执行时的入口
-pub static mut UNFI_SCHE_ENTRY: usize = 0;
-
-pub fn task_init(entry: usize, heap_ptr: usize) {
+// 共享调度器的模块接口表指针
+pub static mut UNFI_INTERFACE_PTR: usize = 0;
+// 用户进程的调度器入口
+pub fn user_entry() -> usize {
     unsafe {
-        let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
-        UNFI_SCHE_ENTRY = unfi_sche_start();
+        let interface = UNFI_INTERFACE_PTR as *const usize;
+        *interface as usize
     }
 }
+// 获取优先级最高的用户进程
+pub fn max_prio_pid() -> usize {
+    unsafe {
+        let interface = UNFI_INTERFACE_PTR as *const usize;
+        let max_prio_pid: fn() -> usize = transmute(*interface.add(1) as usize);
+        max_prio_pid()
+    }
+}
+
+

@@ -1,8 +1,6 @@
 
 use runtime::Executor;
 
-use crate::{config::CPU_NUM, hart_id};
-const EMPTY_EXECUTOR: Option<&mut Executor> = None;
 /// HEAP 指向的是用户进程的 HEAP
 pub static mut EXECUTOR: Option<&mut Executor> = None;
 

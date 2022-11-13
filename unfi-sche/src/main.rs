@@ -4,6 +4,7 @@
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(allocator_api)]
+#![feature(atomic_from_mut, inline_const)]
 #![feature(asm_sym)]
 
 #[macro_use]
@@ -11,21 +12,18 @@ mod console;
 mod syscall;
 
 mod heap;
-mod thread;
+// mod thread;
 mod executor;
 mod interface;
 
 extern crate alloc;
 
-use config::CPU_NUM;
 use heap::MutAllocator;
 use runtime::Executor;
-use interface::{add_coroutine, poll_future};
-use alloc::boxed::Box;
+use interface::{add_coroutine, poll_future, max_prio_pid};
 use alloc::vec;
 use spin::Mutex;
 use syscall::*;
-use thread::Thread;
 use crate::config::{ENTRY, UNFI_SCHE_BUFFER};
 
 mod config;
@@ -49,19 +47,22 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     sys_exit(-1);
 }
 
+static mut INTERFACE: [usize; 10] = [0usize; 10];
 
-/// _start() 函数由内核跳转执行，在每次执行线程之前需要由内核调用一次，设置默认的堆
+/// _start() 函数由内核跳转执行，返回用户进程的入口地址，以及获取最高优先级进程的函数地址
 #[no_mangle]
 #[link_section = ".text.entry"]
-unsafe extern "C" fn _start() -> usize {
+extern "C" fn _start() -> usize {
     let heapptr = UNFI_SCHE_BUFFER;
     let heap = heapptr as *mut usize as *mut Mutex<MutAllocator<32>>;
     let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
     unsafe {
         heap::init(& *heap);
         executor::init(&mut *exe);
+        INTERFACE[0] = primary_thread as usize;
+        INTERFACE[1] = max_prio_pid as usize;
+        &INTERFACE as *const [usize; 10] as usize
     }
-    primary_thread as usize
 }
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
@@ -89,14 +90,6 @@ fn primary_thread() {
         waittid(*tid as usize);
     }
     sys_exit(0);
-}
-
-pub fn hart_id() -> usize {
-    let hart_id: usize;
-    unsafe {
-        core::arch::asm!("mv {}, tp", out(reg) hart_id);
-    }
-    hart_id
 }
 
 
