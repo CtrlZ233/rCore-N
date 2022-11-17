@@ -18,7 +18,7 @@ mod interface;
 
 extern crate alloc;
 
-use interface::{add_coroutine, poll_future, max_prio_pid, poll_kernel_future};
+use interface::{add_coroutine, poll_future, max_prio_pid, poll_kernel_future, is_waked, current_cid, wake_future};
 use alloc::vec;
 use syscall::*;
 use crate::config::ENTRY;
@@ -55,6 +55,8 @@ extern "C" fn _start() -> usize {
         INTERFACE[1] = max_prio_pid as usize;
         INTERFACE[2] = add_coroutine as usize;
         INTERFACE[3] = poll_kernel_future as usize;
+        INTERFACE[4] = wake_future as usize;
+        INTERFACE[5] = current_cid as usize;
 
         &INTERFACE as *const [usize; 10] as usize
     }
@@ -63,26 +65,26 @@ extern "C" fn _start() -> usize {
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 fn primary_thread() {
     unsafe {
-        let secondary_init: fn(usize) = core::mem::transmute(ENTRY);
+        let secondary_init: fn(usize, usize, usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
-        secondary_init(add_coroutine as usize);
+        secondary_init(add_coroutine as usize, is_waked as usize, current_cid as usize);
     }
     // 主线程，在这里创建执行协程的线程，之后再进行控制
     // let mut thread = Thread::new();
     // thread.execute();
-    let mut wait_tid = vec![];
-    let max_len = 5;
-    let pid = sys_getpid();
-    if pid != 0 {
-        for _ in 0..max_len {
-            wait_tid.push(sys_thread_create(poll_future as usize, 0));
-        }
-    }
+    // let mut wait_tid = vec![];
+    // let max_len = 5;
+    // let pid = sys_getpid();
+    // if pid != 0 {
+    //     for _ in 0..max_len {
+    //         wait_tid.push(sys_thread_create(poll_future as usize, 0));
+    //     }
+    // }
 
     poll_future();
-    for tid in wait_tid.iter() {
-        waittid(*tid as usize);
-    }
+    // for tid in wait_tid.iter() {
+    //     waittid(*tid as usize);
+    // }
     sys_exit(0);
 }
 

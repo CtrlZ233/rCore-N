@@ -11,7 +11,7 @@ use alloc::boxed::Box;
 #[no_mangle]
 pub fn main() -> i32 {
     println!("[hello world] from pid: {}", getpid());
-    for i in 0..600 {
+    for i in 0..1000 {
         if i & 1 == 0 {
             add_coroutine(Box::pin(test1()), 2);
         } else {

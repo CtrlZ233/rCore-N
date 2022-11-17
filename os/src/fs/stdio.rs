@@ -3,6 +3,8 @@ use crate::mm::UserBuffer;
 use crate::print;
 use crate::uart::{serial_getchar, serial_putchar};
 use core::fmt::{self, Write};
+use alloc::boxed::Box;
+use core::{future::Future, pin::Pin};
 
 pub struct Stdin;
 
@@ -24,6 +26,9 @@ impl File for Stdin {
     fn write(&self, _user_buf: UserBuffer) -> Result<usize, isize> {
         panic!("Cannot write to stdin!");
     }
+    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        unimplemented!();
+    }
 }
 
 impl File for Stdout {
@@ -35,6 +40,9 @@ impl File for Stdout {
             print!("{}", core::str::from_utf8(*buffer).unwrap());
         }
         Ok(user_buf.len())
+    }
+    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        unimplemented!();
     }
 }
 

@@ -84,6 +84,24 @@ pub fn poll_kernel_future() {
     }
 }
 
+// 唤醒内核协程
+pub fn wake_kernel_future(cid: usize) {
+    unsafe {
+        let interface = UNFI_INTERFACE_PTR as *const usize;
+        let wake_kernel_future: fn(cid: usize, pid: usize) = transmute(*interface.add(4) as usize);
+        wake_kernel_future(cid, 0);
+    }
+}
+
+// 内核当前正在运行的协程
+pub fn current_cid() -> usize {
+    unsafe {
+        let interface = UNFI_INTERFACE_PTR as *const usize;
+        let current_cid: fn() -> usize = transmute(*interface.add(5) as usize);
+        current_cid()
+    }
+}
+
 
 
 

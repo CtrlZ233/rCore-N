@@ -4,6 +4,7 @@
 #![feature(alloc_error_handler)]
 #![feature(map_first_last)]
 #![feature(map_try_insert)]
+#![feature(vec_into_raw_parts)]
 
 extern crate alloc;
 extern crate rv_plic;

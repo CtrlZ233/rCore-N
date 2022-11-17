@@ -14,6 +14,7 @@ pub use page_table::{
     PageTableEntry, UserBuffer, UserBufferIterator,
 };
 use page_table::{PTEFlags, PageTable};
+pub use heap_allocator::MutAllocator;
 
 pub fn init() {
     heap_allocator::init_heap();

@@ -1,6 +1,8 @@
 use super::File;
 use crate::mm::UserBuffer;
 use crate::uart::{serial_getchar, serial_putchar};
+use alloc::boxed::Box;
+use core::{future::Future, pin::Pin};
 
 pub struct Serial<const N: usize>;
 
@@ -48,5 +50,8 @@ impl<const N: usize> File for Serial<N> {
         } else {
             Err(-1)
         }
+    }
+    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        unimplemented!();
     }
 }
