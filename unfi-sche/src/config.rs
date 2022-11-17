@@ -5,7 +5,6 @@ pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
 pub const UNFI_SCHE_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
 
 pub const ENTRY: usize = 0x1000;
-// 最大的进程数量
-pub const MAX_PROC_NUM: usize = 0x1000;
+
 
 

@@ -30,6 +30,10 @@ impl TaskManager {
         // debug!("tasks total: {}", self.ready_queue.len());    
         // error!("max prio pid is {}", crate::lkm::max_prio_pid());
         let prio_pid = crate::lkm::max_prio_pid();
+        // 如果内核协程的优先级最高，则
+        if prio_pid == 0 {
+            crate::lkm::poll_kernel_future();
+        }
         let n = self.ready_queue.len();
         if n == 0 { return None; }
         let mut peek;
@@ -37,7 +41,7 @@ impl TaskManager {
         loop {
             peek = self.ready_queue.pop_front().unwrap();
             let pid = peek.process.upgrade().unwrap().getpid();
-            if pid == prio_pid {
+            if pid == prio_pid - 1 {
                 return Some(peek); 
             }
             self.ready_queue.push_back(peek);

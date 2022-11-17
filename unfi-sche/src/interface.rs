@@ -4,62 +4,29 @@ use core::pin::Pin;
 use core::future::Future;
 use core::sync::atomic::Ordering;
 use core::task::Poll;
-use crate::executor::EXECUTOR;
+use crate::executor::Exe;
 use crate::syscall::*;
-use crate::config::MAX_PROC_NUM;
+use runtime::MAX_PROC_NUM;
 use core::sync::atomic::AtomicUsize;
 
 #[no_mangle]
-pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-    // println!("add");
-    unsafe { 
-        EXECUTOR.as_mut().unwrap().add_coroutine(future, prio);
-
-        let prio = EXECUTOR.as_mut().unwrap().priority;
-        let pid = sys_getpid() as usize;
-        update_prio(pid, prio);
-    }
-    
-    // println!("add end");
+pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize){
+    Exe::add_coroutine(future, prio, pid);    
 }
 
 #[no_mangle]
-pub fn poll_future(a0: usize) {
-    let tid = sys_gettid();
-    if tid != 0 {
-        sleep(50);
-    }
-    loop {
-        let task = unsafe { EXECUTOR.as_mut().unwrap().fetch() };
-        let prio = unsafe { EXECUTOR.as_mut().unwrap().priority };
-        let pid = sys_getpid() as usize;
-        update_prio(pid, prio);
-        match task {
-            Some(task) => {
-                sleep(10);
-                let cid = task.cid;
-                match task.execute() {
-                    Poll::Pending => {  }
-                    Poll::Ready(()) => {
-                        unsafe { EXECUTOR.as_mut().unwrap() }.del_coroutine(cid);
-                    }
-                };
-            }
-            _ => {
-                println!("ex is emtpy");
-                break;
-            }
-        }
-    }
-    if tid != 0 {
-        sys_exit(2);
-    }
-    sleep(1000);
-    // yield_thread(a0);
+pub fn poll_future() {
+    Exe::poll_user_future();
+}
+
+
+#[no_mangle]
+pub fn poll_kernel_future() {
+    Exe::poll_kernel_future();
 }
 
 // 各个进程的最高优先级协程，通过共享内存的形式进行通信
-pub static mut PRIO_ARRAY: [AtomicUsize; MAX_PROC_NUM] = [const { AtomicUsize::new(usize::MAX) }; MAX_PROC_NUM];
+pub static mut PRIO_ARRAY: [AtomicUsize; MAX_PROC_NUM + 1] = [const { AtomicUsize::new(usize::MAX) }; MAX_PROC_NUM + 1];
 
 // 进程内的线程通过原子操作互斥更新
 pub fn update_prio(idx: usize, prio: usize) {

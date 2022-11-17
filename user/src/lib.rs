@@ -42,7 +42,7 @@ pub extern "C" fn _start(add_coroutine_addr: usize) {
     }
     heap::init();
     // main();
-    add_coroutine(Box::pin(async{ main(); }), 0);
+    add_coroutine(Box::pin(async{ main(); }), runtime::PRIO_NUM - 1);
 
     // let mut v: Vec<&'static str> = Vec::new();
     // for i in 0..argc {
@@ -66,9 +66,10 @@ static mut ADD_COROUTINE_ADDR: usize = 0;
 // 用户态添加协程
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
     unsafe {
-        let add_coroutine_fn: fn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize) = 
+        let add_coroutine_fn: fn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) = 
             core::mem::transmute(ADD_COROUTINE_ADDR);
-        add_coroutine_fn(future, prio);
+        let pid = sys_getpid() as usize;
+        add_coroutine_fn(future, prio, pid + 1);
     }
 }
 

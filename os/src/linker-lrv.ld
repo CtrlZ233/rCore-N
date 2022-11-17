@@ -29,6 +29,8 @@ SECTIONS
     erodata = .;
     sdata = .;
     .data : {
+        *(.data.heap)
+        *(.data.executor)
         *(.data .data.*)
         *(.sdata .sdata.*)
     }
@@ -39,6 +41,7 @@ SECTIONS
     .bss : {
         *(.bss.stack)
         sbss = .;
+        *(.bss.memory)
         *(.bss .bss.*)
         *(.sbss .sbss.*)
         ebss_ma = .;

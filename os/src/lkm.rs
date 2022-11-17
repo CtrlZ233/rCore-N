@@ -35,6 +35,10 @@ fn add_lkm_image(){
         UNFI_INTERFACE_PTR = unfi_sche_start();
         // crate::println!("primary init addr {:#x}", unfi_sche_start(0, 0));
     }
+    add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0);
+    add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0);
+    // error!("poll_kernel_future");
+    // poll_kernel_future();
     debug!("unfi init done");
 
 }
@@ -55,9 +59,31 @@ pub fn user_entry() -> usize {
 pub fn max_prio_pid() -> usize {
     unsafe {
         let interface = UNFI_INTERFACE_PTR as *const usize;
+        // error!("max_prio_pid ptr {:#x}", *interface.add(1) as usize);
         let max_prio_pid: fn() -> usize = transmute(*interface.add(1) as usize);
         max_prio_pid()
     }
 }
+
+// 添加协程
+pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize) {
+    unsafe {
+        let interface = UNFI_INTERFACE_PTR as *const usize;
+        let add_coroutine_fn: fn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) = 
+            transmute(*interface.add(2) as usize);
+        add_coroutine_fn(future, prio, 0);
+    }
+}
+
+// 运行内核协程
+pub fn poll_kernel_future() {
+    unsafe {
+        let interface = UNFI_INTERFACE_PTR as *const usize;
+        let poll_kernel_future: fn() = transmute(*interface.add(3) as usize);
+        poll_kernel_future();
+    }
+}
+
+
 
 

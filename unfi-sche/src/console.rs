@@ -1,9 +1,8 @@
 use core::fmt::{self, Write};
 
-const STDIN: usize = 0;
 const STDOUT: usize = 1;
 
-use crate::syscall::{sys_read, sys_write};
+use crate::syscall::sys_write;
 
 struct Stdout;
 
@@ -30,13 +29,4 @@ macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::console::print(format_args!(concat!($fmt, "\r\n") $(, $($arg)+)?));
     }
-}
-
-pub fn getchar() -> u8 {
-    let mut c = [0u8; 1];
-    let mut res = -1;
-    while res < 0 {
-        res = sys_read(STDIN, &mut c);
-    }
-    c[0]
 }

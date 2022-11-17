@@ -18,13 +18,10 @@ mod interface;
 
 extern crate alloc;
 
-use heap::MutAllocator;
-use runtime::Executor;
-use interface::{add_coroutine, poll_future, max_prio_pid};
+use interface::{add_coroutine, poll_future, max_prio_pid, poll_kernel_future};
 use alloc::vec;
-use spin::Mutex;
 use syscall::*;
-use crate::config::{ENTRY, UNFI_SCHE_BUFFER};
+use crate::config::ENTRY;
 
 mod config;
 
@@ -53,14 +50,12 @@ static mut INTERFACE: [usize; 10] = [0usize; 10];
 #[no_mangle]
 #[link_section = ".text.entry"]
 extern "C" fn _start() -> usize {
-    let heapptr = UNFI_SCHE_BUFFER;
-    let heap = heapptr as *mut usize as *mut Mutex<MutAllocator<32>>;
-    let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
     unsafe {
-        heap::init(& *heap);
-        executor::init(&mut *exe);
         INTERFACE[0] = primary_thread as usize;
         INTERFACE[1] = max_prio_pid as usize;
+        INTERFACE[2] = add_coroutine as usize;
+        INTERFACE[3] = poll_kernel_future as usize;
+
         &INTERFACE as *const [usize; 10] as usize
     }
 }
@@ -84,8 +79,7 @@ fn primary_thread() {
         }
     }
 
-    poll_future(0);
-    //
+    poll_future();
     for tid in wait_tid.iter() {
         waittid(*tid as usize);
     }
