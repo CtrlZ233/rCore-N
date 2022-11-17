@@ -4,7 +4,7 @@ mod usertrap;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::{plic, println};
 use crate::sbi::set_timer;
-use crate::syscall::{sys_gettid, syscall};
+use crate::syscall::{sys_gettid, syscall, syscall6};
 use crate::task::{current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token, exit_current_and_run_next, hart_id, suspend_current_and_run_next};
 use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
 use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
@@ -68,7 +68,13 @@ pub fn trap_handler() -> ! {
             cx.sepc += 4;
             let id = cx.x[17];
             // get system call return value
-            let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+            let mut result = 0isize;
+            if id == 2501 || id == 2502 {
+                result = syscall6(cx.x[17], [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]]);
+            } else {
+                result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+            }
+            // result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
             // cx is changed during sys_exec, so we have to call it again
             // cx = current_trap_cx();
             if id != 221 || result != 0 {

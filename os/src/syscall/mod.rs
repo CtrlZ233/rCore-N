@@ -28,11 +28,13 @@ const SYSCALL_WAITTID: usize = 1002;
 mod fs;
 mod process;
 mod thread;
+mod async_wr;
 
 use crate::trace::{push_trace, TRACE_SYSCALL_ENTER, TRACE_SYSCALL_EXIT};
 use fs::*;
 use process::*;
 pub use crate::syscall::thread::{sys_gettid, sys_thread_create, sys_waittid};
+pub use async_wr::WRMAP;
 
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
@@ -68,4 +70,16 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     };
     push_trace(TRACE_SYSCALL_EXIT + syscall_id);
     ret
+}
+
+/**************************** syscall6 ******************************************/
+use async_wr::*;
+pub const ASYNC_SYSCALL_READ: usize = 2501;
+pub const ASYNC_SYSCALL_WRITE: usize = 2502;
+pub fn syscall6(syscall_id: usize, args: [usize; 6]) -> isize {
+    match syscall_id {
+        ASYNC_SYSCALL_READ => async_sys_read(args[0], args[1] as *const u8, args[2], args[3], args[4]),
+        ASYNC_SYSCALL_WRITE => async_sys_write(args[0], args[1] as *const u8, args[2], args[3]),
+        _ => panic!("Unsupported syscall_id: {}", syscall_id),
+    }
 }

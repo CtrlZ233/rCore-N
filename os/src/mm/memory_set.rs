@@ -7,6 +7,7 @@ use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::arch::asm;
+use core::slice::SliceIndex;
 use lazy_static::*;
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
@@ -192,6 +193,7 @@ impl MemorySet {
             ),
             None,
         );
+
         unsafe { asm!("fence.i") }
         memory_set
     }
@@ -272,9 +274,21 @@ impl MemorySet {
         debug!("map unfi_sche buffer: {:#x}", UNFI_SCHE_BUFFER);
         let data_section_vir_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
         let data_section_phy_addr = memory_set.page_table.translate_va(VirtAddr::from(data_section_vir_addr)).unwrap();
-        memory_set.map_unfi_sche_buffer(data_section_phy_addr);
+        // 另外分配一个物理页，只存放 heap 的虚拟地址
+        memory_set.push(
+            MapArea::new(
+                UNFI_SCHE_BUFFER.into(),
+                (UNFI_SCHE_BUFFER + PAGE_SIZE).into(),
+                MapType::Framed,
+                MapPermission::R | MapPermission::W | MapPermission::U,
+            ),
+        None);
+        let unfi_buffer_paddr = translate_writable_va(memory_set.token(), UNFI_SCHE_BUFFER)
+            .unwrap() as *mut usize;
+        unsafe { *unfi_buffer_paddr = data_section_vir_addr; }
+        // memory_set.map_unfi_sche_buffer(data_section_phy_addr);
         debug!("map unfi_sche buffer done");
-            unsafe { asm!("fence.i") }
+        unsafe { asm!("fence.i") }
         (
             memory_set,
             user_stack_bottom,
@@ -517,7 +531,6 @@ impl MemorySet {
                 );
             }
         }
-
         self.push(
             MapArea::new(
                 UNFI_SCHE_BUFFER.into(),
@@ -527,7 +540,9 @@ impl MemorySet {
             ),
             None,
         );
+        unsafe{ *(UNFI_SCHE_BUFFER as *mut usize) = sdata as usize; }
     }
+
     pub fn add_user_module(&mut self, module_space: &MemorySet) {
         for area in module_space.areas.iter() {
             // println!("addr {:#x?} - {:#x?}", area.vpn_range.get_start(), area.vpn_range.get_end());

@@ -59,6 +59,29 @@ impl Thread {
 
 }
 
+pub fn yield_thread(ctx_addr: usize) {
+    unsafe {
+        core::arch::asm!(
+        r"  .altmacro
+            .macro LOAD_SN n
+                ld s\n, (\n+2)*8(a0)
+            .endm
+            
+            mv a0, {a0}
+            ld ra, 0(a0)
+            .set n, 0
+            .rept 12
+                LOAD_SN %n
+                .set n, n + 1
+            .endr
+            ld sp, 8(a0)
+            ret",
+            a0  = in(reg) ctx_addr,
+            options(noreturn)
+        )
+    }
+}
+
 #[naked]
 unsafe extern "C" fn execute_naked() {
     core::arch::asm!(

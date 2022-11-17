@@ -1,12 +1,121 @@
 
-use runtime::Executor;
+use runtime::{Executor, CoroutineId};
+use crate::heap::MutAllocator;
+use spin::Mutex;
+use crate::config::UNFI_SCHE_BUFFER;
+use alloc::boxed::Box;
+use core::pin::Pin;
+use core::future::Future;
+use core::sync::atomic::Ordering;
+use crate::interface::{update_prio, PRIO_ARRAY};
+use crate::syscall::*;
+use core::task::Poll;
 
-use crate::{config::CPU_NUM, hart_id};
-const EMPTY_EXECUTOR: Option<&mut Executor> = None;
-/// HEAP 指向的是用户进程的 HEAP
-pub static mut EXECUTOR: Option<&mut Executor> = None;
+pub struct Exe;
 
-pub fn init(executor: &'static mut Executor) {
-    // 将用户进程堆的指针传递给共享库的堆，从而使得可以在用户进程的堆中分配数据
-    unsafe { EXECUTOR = Some(executor) };
+impl Exe {
+    pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) {
+        unsafe {
+            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+            (*exe).add_coroutine(future, prio);
+            let prio = (*exe).priority;
+            update_prio(pid, prio);
+        }
+    }
+
+    pub fn poll_user_future() {
+        unsafe {
+            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+            let tid = sys_gettid();
+            if tid != 0 {
+                sleep(50);
+            }
+            loop {
+                if (*exe).is_empty() {
+                    println!("ex is empty");
+                    break;
+                }
+                let task = (*exe).fetch();
+                let prio = (*exe).priority;
+                let pid = sys_getpid() as usize;
+                update_prio(pid + 1, prio);
+                match task {
+                    Some(task) => {
+                        sleep(10);
+                        let cid = task.cid;
+                        match task.execute() {
+                            Poll::Pending => {  }
+                            Poll::Ready(()) => {
+                                (*exe).del_coroutine(cid);
+                            }
+                        };
+                    }
+                    _ => { }
+                }
+            }
+            if tid != 0 {
+                sys_exit(2);
+            }
+            sleep(1000);
+        }
+    }
+
+    pub fn poll_kernel_future() {
+        unsafe {
+            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+            loop {
+                let task = (*exe).fetch();
+                let prio = (*exe).priority;
+                update_prio(0, prio);
+                match task {
+                    Some(task) => {
+                        let cid = task.cid;
+                        match task.execute() {
+                            Poll::Pending => { 
+                            }
+                            Poll::Ready(()) => {
+                                (*exe).del_coroutine(cid);
+                            }
+                        };
+                    }
+                    _ => {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn is_waked(cid: CoroutineId) -> bool {
+        unsafe {
+            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+            (*exe).is_waked(cid)
+        }
+    }
+
+    pub fn current_cid() -> usize {
+        unsafe {
+            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+            (*exe).current.as_mut().unwrap().get_val()
+        }
+    }
+
+    pub fn wake_future(cid: usize, pid: usize) {
+        let cid = CoroutineId::get_tid_by_usize(cid);
+        unsafe {
+            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+            (*exe).callback_queue.push(cid);
+            let prio = (*exe).tasks.get(&cid).unwrap().prio;
+            let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
+            if prio < process_prio {
+                PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
+            }
+        }
+    }
 }

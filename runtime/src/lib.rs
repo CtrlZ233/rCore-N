@@ -14,5 +14,6 @@ pub use executor::Executor;
 pub use coroutine::{CoroutineId, Coroutine};
 pub use config::PRIO_NUM;
 pub use config::CBQ_MAX;
+pub use config::MAX_PROC_NUM;
 use bitmap::BitMap;
 // pub use task_waker::TaskWaker;

@@ -178,7 +178,7 @@ impl ProcessControlBlock {
         drop(task_inner);
         *trap_cx = TrapContext::app_init_context(
             // entry_point,
-            unsafe{ crate::lkm::UNFI_SCHE_ENTRY },
+            unsafe{ crate::lkm::user_entry() },
             ustack_top,
             KERNEL_SPACE.lock().token(),
             kstack_top,
@@ -216,7 +216,7 @@ impl ProcessControlBlock {
         let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
-            unsafe{ crate::lkm::UNFI_SCHE_ENTRY },
+            unsafe{ crate::lkm::user_entry() },
             user_sp,
             KERNEL_SPACE.lock().token(),
             task.kstack.get_top(),

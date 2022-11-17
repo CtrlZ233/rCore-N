@@ -11,6 +11,8 @@ use super::File;
 
 const MAIL_BUFFER_SIZE: usize = 256;
 const MAILBOX_SIZE: usize = 16;
+use alloc::boxed::Box;
+use core::{future::Future, pin::Pin};
 
 pub struct MailBox {
     inner: Mutex<MailBoxInner>,
@@ -94,6 +96,9 @@ impl File for MailBox {
     fn write(&self, _buf: UserBuffer) -> Result<usize, isize> {
         Err(-1)
     }
+    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        unimplemented!();
+    }
 }
 
 pub struct Socket {
@@ -141,6 +146,9 @@ impl File for Socket {
 
             return Ok(write_size);
         }
+    }
+    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        unimplemented!();
     }
 }
 
