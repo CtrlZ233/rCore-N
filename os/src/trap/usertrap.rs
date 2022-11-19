@@ -65,18 +65,6 @@ impl UserTrapInfo {
         unsafe {
             asm!("fence iorw,iorw");
         }
-        // static mut CNT: u8 = 0;
-        // unsafe {
-        //     CNT += 1;
-        //     if CNT > 200 {
-        //         debug!(
-        //             "ena, S: {:#x}, U: {:#x}",
-        //             Plic::get_enable(get_context(hart_id(), 'S'), 0),
-        //             Plic::get_enable(u_context, 0),
-        //         );
-        //         CNT = 0;
-        //     }
-        // }
         push_trace(ENABLE_USER_EXT_INT_EXIT);
     }
 
@@ -95,18 +83,6 @@ impl UserTrapInfo {
         unsafe {
             asm!("fence iorw,iorw");
         }
-        // static mut CNT: u8 = 0;
-        // unsafe {
-        //     CNT += 1;
-        //     if CNT > 200 {
-        //         trace!(
-        //             "dis, S: {:#x}, U: {:#x}",
-        //             Plic::get_enable(get_context(hart_id, 'S'), 0),
-        //             Plic::get_enable(get_context(hart_id, 'U'), 0),
-        //         );
-        //         CNT = 0;
-        //     }
-        // }
         push_trace(DISABLE_USER_EXT_INT_EXIT);
     }
 
@@ -158,12 +134,6 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
         }
         if let Some(trap_info) = &mut pcb_inner.user_trap_info {
             let res = trap_info.push_trap_record(trap_record);
-            // if let Running(task_hart_id) = tcb_inner.task_status {
-            //     if task_hart_id != hart_id() {
-            //         let mask: usize = 1 << task_hart_id;
-            //         send_ipi(&mask as *const _ as usize);
-            //     }
-            // }
             let mut task = None;
             if pcb_inner.user_trap_handler_task.is_some() {
                 task = pcb_inner.user_trap_handler_task.take();

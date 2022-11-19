@@ -13,11 +13,6 @@ pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sy
 }
 
 #[no_mangle]
-pub fn is_waked(cid: usize) -> bool {
-    Exe::is_waked(CoroutineId::get_tid_by_usize(cid))    
-}
-
-#[no_mangle]
 pub fn current_cid() -> usize {
     Exe::current_cid()    
 }
@@ -28,9 +23,9 @@ pub fn poll_future() {
 }
 
 #[no_mangle]
-pub fn re_back(cid: usize) {
+pub fn re_back(cid: usize, pid: usize) {
     println!("re back func enter");
-    Exe::re_back(cid);
+    Exe::re_back(cid, pid);
 }
 
 #[no_mangle]
@@ -38,10 +33,6 @@ pub fn poll_kernel_future() {
     Exe::poll_kernel_future();
 }
 
-#[no_mangle]
-pub fn wake_future(cid: usize, pid: usize) {
-    Exe::wake_future(cid, pid);
-}
 
 // 各个进程的最高优先级协程，通过共享内存的形式进行通信
 pub static mut PRIO_ARRAY: [AtomicUsize; MAX_PROC_NUM + 1] = [const { AtomicUsize::new(usize::MAX) }; MAX_PROC_NUM + 1];

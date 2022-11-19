@@ -55,12 +55,6 @@ pub fn trap_handler() -> ! {
     let stval = stval::read();
     push_trace(S_TRAP_HANDLER + scause.bits());
 
-    // trace!(
-    //     "trap from user, cause: {:?}, stval: {}, trap frame: {:x?}",
-    //     scause.cause(),
-    //     stval,
-    //     current_trap_cx()
-    // );
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             // jump to next instruction anyway
@@ -74,9 +68,7 @@ pub fn trap_handler() -> ! {
             } else {
                 result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
             }
-            // result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
-            // cx is changed during sys_exec, so we have to call it again
-            // cx = current_trap_cx();
+
             if id != 221 || result != 0 {
                 cx.x[10] = result as usize;
             }

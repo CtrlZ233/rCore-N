@@ -135,12 +135,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     debug!("exit end ");
     let mut _unused = Default::default();
     schedule(&mut _unused as *mut _);
-
-    // let task = current_task().unwrap();
-    // let task_inner = task.acquire_inner_lock();
-    // if let Some(trap_info) = &task_inner.user_trap_info {
-    //     trap_info.enable_user_ext_int();
-    // }
 }
 
 lazy_static! {

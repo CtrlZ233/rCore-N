@@ -21,10 +21,6 @@ pub struct Executor {
     pub bitmap: BitMap,
     // 进程最高优先级协程代表的优先级，内核可以直接访问物理地址来读取
     pub priority: usize,
-    // callback_queue 没有必要单独加锁，整个 Executor 粒度的锁足够了
-    pub callback_queue: Vec<CoroutineId>,
-    // 被唤醒过的协程的 id 保存在这里
-    pub callback_cid: BTreeSet<CoroutineId>,
     // 整个 Executor 的读写锁，内核读取 priority 时，可以不获取这个锁，在唤醒协程时，需要获取锁
     pub wr_lock: Mutex<()>,
 }
@@ -37,8 +33,6 @@ impl Executor {
             ready_queue: Vec::new(),
             bitmap: BitMap(0),
             priority: PRIO_NUM,
-            callback_queue: Vec::new(),
-            callback_cid: BTreeSet::new(),
             wr_lock: Mutex::new(()),
         }
     }
@@ -65,18 +59,6 @@ impl Executor {
     // 取出优先级最高的协程 id，并且更新位图
     pub fn fetch(&mut self) -> Option<Arc<Coroutine>> {
         let _lock = self.wr_lock.lock();
-        // 唤醒回调队列中的任务
-        while self.callback_queue.len() != 0 {
-            if let Some(id) = self.callback_queue.pop() {
-                self.callback_cid.insert(id);
-                let prio = self.tasks.get(&id).unwrap().prio;
-                self.ready_queue[prio].push_back(id);
-                self.bitmap.update(prio, true);
-                if prio < self.priority {
-                    self.priority = prio;
-                }
-            }
-        }
         let prio = self.priority;
         if prio == PRIO_NUM {
             self.current = None;
@@ -93,16 +75,15 @@ impl Executor {
         }
     }
 
-    pub fn re_back(&mut self, cid: CoroutineId) -> bool {
-        // let _lock = self.wr_lock.lock();
+    pub fn re_back(&mut self, cid: CoroutineId) -> usize {
+        let _lock = self.wr_lock.lock();
         let prio = self.tasks.get(&cid).unwrap().prio;
         self.ready_queue[prio].push_back(cid);
         self.bitmap.update(prio, true);
         if prio < self.priority {
             self.priority = prio;
-            return true
         }
-        false
+        self.priority
     }
 
     // 删除协程，协程已经被执行完了，在 fetch 取出 id 是就已经更新位图了，因此，这时不需要更新位图
@@ -110,10 +91,5 @@ impl Executor {
         let lock = self.wr_lock.lock();
         self.tasks.remove(&cid);
         drop(lock);
-    }
-
-    // 判断协程是否被唤醒过
-    pub fn is_waked(&mut self, cid: CoroutineId) -> bool {
-        self.callback_cid.contains(&cid)
     }
 }

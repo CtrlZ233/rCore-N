@@ -241,26 +241,7 @@ impl MemorySet {
         let mut user_stack_bottom: usize = max_end_va.into();
         // guard page
         user_stack_bottom += PAGE_SIZE;
-        // let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
-        // memory_set.push(
-        //     MapArea::new(
-        //         user_stack_bottom.into(),
-        //         user_stack_top.into(),
-        //         MapType::Framed,
-        //         MapPermission::R | MapPermission::W | MapPermission::U,
-        //     ),
-        //     None,
-        // );
-        // // map TrapContext
-        // memory_set.push(
-        //     MapArea::new(
-        //         TRAP_CONTEXT.into(),
-        //         TRAMPOLINE.into(),
-        //         MapType::Framed,
-        //         MapPermission::R | MapPermission::W,
-        //     ),
-        //     None,
-        // );
+
         // map trace
         memory_set.push(
             MapArea::new(

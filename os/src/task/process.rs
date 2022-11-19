@@ -113,13 +113,6 @@ impl ProcessControlBlockInner {
         use riscv::register::{uip, uscratch};
         if self.is_user_trap_enabled() && sys_gettid() as usize == self.user_trap_handler_tid {
             if let Some(trap_info) = &mut self.user_trap_info {
-                // if trap_info.user_trap_record_num > 0 {
-                //     uscratch::write(trap_info.user_trap_record_num as usize);
-                //     trap_info.user_trap_record_num = 0;
-                //     unsafe {
-                //         uip::set_usoft();
-                //     }
-                // }
                 if !trap_info.get_trap_queue().is_empty() {
                     trace!("restore {} user trap", trap_info.user_trap_record_num());
                     uscratch::write(trap_info.user_trap_record_num());

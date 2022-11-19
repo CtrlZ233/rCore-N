@@ -33,12 +33,9 @@ fn add_lkm_image(){
     unsafe {
         let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
         UNFI_INTERFACE_PTR = unfi_sche_start();
-        // crate::println!("primary init addr {:#x}", unfi_sche_start(0, 0));
     }
     add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0);
     add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0);
-    // error!("poll_kernel_future");
-    // poll_kernel_future();
     debug!("unfi init done");
 
 }

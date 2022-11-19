@@ -41,10 +41,6 @@ impl Debug for PhysPageNum {
     }
 }
 
-/// T: {PhysAddr, VirtAddr, PhysPageNum, VirtPageNum}
-/// T -> usize: T.0
-/// usize -> T: usize.into()
-
 impl From<usize> for PhysAddr {
     fn from(v: usize) -> Self {
         Self(v)

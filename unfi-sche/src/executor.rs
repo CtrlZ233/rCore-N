@@ -10,6 +10,7 @@ use core::sync::atomic::Ordering;
 use crate::interface::{update_prio, PRIO_ARRAY};
 use crate::syscall::*;
 use core::task::Poll;
+use crate::re_back;
 
 pub struct Exe;
 
@@ -89,14 +90,6 @@ impl Exe {
         }
     }
 
-    pub fn is_waked(cid: CoroutineId) -> bool {
-        unsafe {
-            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
-            (*exe).is_waked(cid)
-        }
-    }
-
     pub fn current_cid() -> usize {
         unsafe {
             let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
@@ -105,28 +98,18 @@ impl Exe {
         }
     }
 
-    pub fn wake_future(cid: usize, pid: usize) {
-        let cid = CoroutineId::get_tid_by_usize(cid);
-        unsafe {
-            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
-            (*exe).callback_queue.push(cid);
-            let prio = (*exe).tasks.get(&cid).unwrap().prio;
-            let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
-            if prio < process_prio {
-                PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
-            }
-        }
-    }
 
-    pub fn re_back(cid: usize) {
+    pub fn re_back(cid: usize, pid: usize) {
         println!("[Exec]re back func enter");
         unsafe {
             let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
             let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
-            let _lock = (*exe).wr_lock.lock();
-            let ans = (*exe).re_back(CoroutineId(cid));
-            println!("[Exec]re back func end, prio: {:?} ans: {}", (*exe).priority, ans);
+
+            let prio = (*exe).re_back(CoroutineId(cid));
+            let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
+            if prio < process_prio {
+                PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
+            }
         }
     }
 }

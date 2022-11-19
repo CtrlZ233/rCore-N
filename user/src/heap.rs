@@ -40,7 +40,6 @@ pub fn init() {
     }
     unsafe {
         EXECUTOR.ready_queue = vec![VecDeque::new(); runtime::PRIO_NUM];
-        EXECUTOR.callback_queue = Vec::with_capacity(runtime::CBQ_MAX);
     }
 }
 

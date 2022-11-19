@@ -35,7 +35,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start(add_coroutine_addr: usize, is_waked_addr: usize, current_cid_addr: usize, re_back_addr: usize) {
+pub extern "C" fn _start(add_coroutine_addr: usize, current_cid_addr: usize, re_back_addr: usize) {
 // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     use riscv::register::{mtvec::TrapMode, utvec};
     extern "C" {
@@ -44,33 +44,16 @@ pub extern "C" fn _start(add_coroutine_addr: usize, is_waked_addr: usize, curren
     unsafe {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
         ADD_COROUTINE_ADDR = add_coroutine_addr;
-        IS_WAKED_ADDR = is_waked_addr;
         CURRENT_CID_ADDR = current_cid_addr;
         RE_BACK_ADDR = re_back_addr;
     }
     heap::init();
     // main();
     add_coroutine(Box::pin(async{ main(); }), runtime::PRIO_NUM - 1);
-
-    // let mut v: Vec<&'static str> = Vec::new();
-    // for i in 0..argc {
-    //     let str_start =
-    //         unsafe { ((argv + i * core::mem::size_of::<usize>()) as *const usize).read_volatile() };
-    //     let len = (0usize..)
-    //         .find(|i| unsafe { ((str_start + *i) as *const u8).read_volatile() == 0 })
-    //         .unwrap();
-    //     v.push(
-    //         core::str::from_utf8(unsafe {
-    //             core::slice::from_raw_parts(str_start as *const u8, len)
-    //         })
-    //         .unwrap(),
-    //     );
-    // }
     // exit(main());
 }
 
 static mut ADD_COROUTINE_ADDR: usize = 0;
-static mut IS_WAKED_ADDR: usize = 0;
 static mut CURRENT_CID_ADDR: usize = 0;
 static mut RE_BACK_ADDR: usize = 0;
 
@@ -84,15 +67,6 @@ pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sy
     }
 }
 
-// 协程是否被唤醒过
-pub fn is_waked(cid: usize) -> bool {
-    unsafe {
-        let is_waked_fn: fn(cid: usize) -> bool = 
-            core::mem::transmute(IS_WAKED_ADDR);
-        is_waked_fn(cid)
-    }
-}
-
 // 当前正在运行的协程，只能在 协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {
     unsafe {
@@ -103,9 +77,10 @@ pub fn current_cid() -> usize {
 }
 
 pub fn re_back(cid: usize) {
+    let pid = getpid();
     unsafe {
-        let re_back_fn: fn(usize) = core::mem::transmute(RE_BACK_ADDR);
-        re_back_fn(cid);
+        let re_back_fn: fn(usize, usize) = core::mem::transmute(RE_BACK_ADDR);
+        re_back_fn(cid, pid as usize);
     }
 }
 

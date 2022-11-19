@@ -43,9 +43,6 @@ pub fn async_sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: us
         let file = file.clone();
         // release Task lock manually to avoid deadlock
         drop(inner);
-        //file.read(
-        //    UserBuffer::new(translated_byte_buffer(token, buf, len))
-        //) as isize
         let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
         crate::lkm::add_coroutine(work, 0);
         0

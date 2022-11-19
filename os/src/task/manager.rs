@@ -75,23 +75,3 @@ impl TaskManager {
         }
     }
 }
-
-// lazy_static! {
-//     pub static ref TASK_MANAGER: Mutex<TaskManager> = Mutex::new(TaskManager::new());
-// }
-
-// pub fn add_task(task: Arc<TaskControlBlock>) {
-//     TASK_MANAGER.lock().add(task);
-// }
-
-// pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
-//     TASK_MANAGER.lock().fetch()
-// }
-
-// pub fn find_task(pid: usize) -> Option<Arc<TaskControlBlock>> {
-//     let current = current_task().unwrap();
-//     if current.pid == pid {
-//         return Some(current);
-//     }
-//     TASK_MANAGER.lock().find(pid)
-// }
