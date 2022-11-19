@@ -1,7 +1,7 @@
 use alloc::string::String;
 use spin::{Mutex, MutexGuard};
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, translated_refmut, VirtAddr};
-use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
+use crate::task::{add_task, current_process, pid_alloc, PidHandle, TaskControlBlock};
 use super::pid::RecycleAllocator;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
@@ -31,6 +31,8 @@ pub struct ProcessControlBlockInner {
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
+    pub user_trap_handler_tid: usize,
+    pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
 }
 
 impl ProcessControlBlockInner {
@@ -109,7 +111,7 @@ impl ProcessControlBlockInner {
 
     pub fn restore_user_trap_info(&mut self) {
         use riscv::register::{uip, uscratch};
-        if self.is_user_trap_enabled() && sys_gettid() == 0 {
+        if self.is_user_trap_enabled() && sys_gettid() as usize == self.user_trap_handler_tid {
             if let Some(trap_info) = &mut self.user_trap_info {
                 // if trap_info.user_trap_record_num > 0 {
                 //     uscratch::write(trap_info.user_trap_record_num as usize);
@@ -133,6 +135,14 @@ impl ProcessControlBlockInner {
 impl ProcessControlBlock {
     pub fn acquire_inner_lock(&self) -> MutexGuard<ProcessControlBlockInner> {
         self.inner.lock()
+    }
+
+    pub fn set_user_trap_handler_tid(self: &Arc<Self>, user_trap_handler_tid: usize) {
+        self.acquire_inner_lock().user_trap_handler_tid = user_trap_handler_tid;
+    }
+
+    pub fn get_user_trap_handler_tid(self: &Arc<Self>) -> usize {
+        self.acquire_inner_lock().user_trap_handler_tid
     }
 
     pub fn new(elf_data: &[u8]) -> Arc<Self> {
@@ -161,6 +171,8 @@ impl ProcessControlBlock {
                     ],
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    user_trap_handler_tid: 0,
+                    user_trap_handler_task: None
                 })
             },
         });
@@ -269,6 +281,8 @@ impl ProcessControlBlock {
                     fd_table: new_fd_table,
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    user_trap_handler_tid: 0,
+                    user_trap_handler_task: None
                 })
             },
         });

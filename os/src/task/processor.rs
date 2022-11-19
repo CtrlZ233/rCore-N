@@ -129,11 +129,12 @@ impl Processor {
     pub fn run(&self) {
         loop {
             if let Some(task) = fetch_task() {
-                // unsafe { riscv::asm::sfence_vma_all() }
                 self.run_next(task);
-                // __switch inside run_next
-                // debug!("idle");
                 self.suspend_current();
+            } else {
+                if hart_id() == 0 {
+                    crate::lkm::poll_kernel_future();
+                }
             }
         }
     }

@@ -24,6 +24,7 @@ const SYSCALL_SET_EXT_INT_ENABLE: usize = 604;
 const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_GETTID: usize = 1001;
 const SYSCALL_WAITTID: usize = 1002;
+const SYSCALL_HANG: usize = 1003;
 
 mod fs;
 mod process;
@@ -58,7 +59,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_MAILREAD => sys_mailread(args[0] as *mut u8, args[1]),
         SYSCALL_MAILWRITE => sys_mailwrite(args[0], args[1] as *mut u8, args[2]),
         SYSCALL_FLUSH_TRACE => sys_flush_trace(),
-        SYSCALL_INIT_USER_TRAP => sys_init_user_trap(),
+        SYSCALL_INIT_USER_TRAP => sys_init_user_trap(args[0]),
         SYSCALL_SEND_MSG => sys_send_msg(args[0], args[1]),
         SYSCALL_SET_TIMER => sys_set_timer(args[0]),
         SYSCALL_CLAIM_EXT_INT => sys_claim_ext_int(args[0]),
@@ -66,6 +67,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_THREAD_CREATE => sys_thread_create(args[0], args[1]),
         SYSCALL_GETTID => sys_gettid(),
         SYSCALL_WAITTID => sys_waittid(args[0]) as isize,
+        SYSCALL_HANG => sys_hang(),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
     push_trace(TRACE_SYSCALL_EXIT + syscall_id);
@@ -74,6 +76,8 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
 
 /**************************** syscall6 ******************************************/
 use async_wr::*;
+use crate::syscall::thread::sys_hang;
+
 pub const ASYNC_SYSCALL_READ: usize = 2501;
 pub const ASYNC_SYSCALL_WRITE: usize = 2502;
 pub fn syscall6(syscall_id: usize, args: [usize; 6]) -> isize {

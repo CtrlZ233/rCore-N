@@ -93,6 +93,18 @@ impl Executor {
         }
     }
 
+    pub fn re_back(&mut self, cid: CoroutineId) -> bool {
+        // let _lock = self.wr_lock.lock();
+        let prio = self.tasks.get(&cid).unwrap().prio;
+        self.ready_queue[prio].push_back(cid);
+        self.bitmap.update(prio, true);
+        if prio < self.priority {
+            self.priority = prio;
+            return true
+        }
+        false
+    }
+
     // 删除协程，协程已经被执行完了，在 fetch 取出 id 是就已经更新位图了，因此，这时不需要更新位图
     pub fn del_coroutine(&mut self, cid: CoroutineId) {
         let lock = self.wr_lock.lock();

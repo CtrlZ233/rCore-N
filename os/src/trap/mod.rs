@@ -118,16 +118,9 @@ pub fn trap_handler() -> ! {
                 drop(timer_map);
                 if pid == 0 {
                     set_next_trigger();
-                    // static mut CNT: usize = 0;
-                    // unsafe {
-                    //     CNT += 1;
-                    //     if CNT > 6000 {
-                    //         debug!("kernel tick");
-                    //         CNT = 0;
-                    //     }
-                    // }
                     suspend_current_and_run_next();
-                } else if pid == current_task().unwrap().getpid() && sys_gettid() == 0 {
+                } else if pid == current_task().unwrap().getpid() &&
+                          sys_gettid() as usize == current_process().unwrap().get_user_trap_handler_tid() {
                     debug!("set UTIP for pid {}", pid);
                     unsafe {
                         sip::set_utimer();
@@ -172,11 +165,7 @@ pub fn trap_return() -> ! {
         .unwrap()
         .acquire_inner_lock()
         .restore_user_trap_info();
-    // let is_sstatus_uie = current_process().unwrap().acquire_inner_lock().is_sstatus_uie;
     let mut trap_cx = current_trap_cx();
-    // if is_sstatus_uie {
-    //     trap_cx.sstatus.set_uie(true);
-    // }
     set_user_trap_entry();
     let trap_cx_ptr = current_trap_cx_user_va();
     let user_satp = current_user_token();
@@ -203,20 +192,6 @@ pub extern "C" fn trap_from_kernel(cx: &mut TrapContext) {
     let sepc = sepc::read();
     let sstatus = sstatus::read();
     match scause.cause() {
-        // Trap::Interrupt(Interrupt::SupervisorTimer) => {
-        //     set_next_trigger();
-        //     // unsafe {
-        //     //     ebreak();
-        //     // }
-        //     suspend_current_and_run_next();
-        // }
-        // Trap::Interrupt(Interrupt::SupervisorExternal) => {
-        //     // debug!("Supervisor External");
-        //     unsafe {
-        //         ebreak();
-        //     }
-        //     plic::handle_external_interrupt();
-        // }
         Trap::Interrupt(Interrupt::SupervisorSoft) => {
             debug!("SupervisorSoft");
         }

@@ -5,3 +5,6 @@ hello_world_simple
 initproc
 unfi-sche
 async_demo
+user_trap_demo
+uart_ext
+hello_world

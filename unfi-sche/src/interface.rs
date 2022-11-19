@@ -27,6 +27,11 @@ pub fn poll_future() {
     Exe::poll_user_future();
 }
 
+#[no_mangle]
+pub fn re_back(cid: usize) {
+    println!("re back func enter");
+    Exe::re_back(cid);
+}
 
 #[no_mangle]
 pub fn poll_kernel_future() {
@@ -50,9 +55,13 @@ pub fn update_prio(idx: usize, prio: usize) {
 
 // 内核在发生时中中断，重新调度进程时，调用这个函数，选出进程，再选出对应的线程
 pub fn max_prio_pid() -> usize {
-    let mut ret = usize::MAX;
+    let mut ret;
     let mut pid = 0;
-    for i in 0..MAX_PROC_NUM {
+    unsafe {
+        ret = PRIO_ARRAY[0].load(Ordering::Relaxed);
+    }
+
+    for i in 1..MAX_PROC_NUM {
         unsafe {
             let prio = PRIO_ARRAY[i].load(Ordering::Relaxed);
             if prio < ret {

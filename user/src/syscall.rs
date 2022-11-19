@@ -27,6 +27,7 @@ const SYSCALL_SET_EXT_INT_ENABLE: usize = 604;
 const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_GETTID: usize = 1001;
 const SYSCALL_WAITTID: usize = 1002;
+const SYSCALL_HANG: usize = 1003;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -118,8 +119,8 @@ pub fn sys_flush_trace() -> isize {
     syscall(SYSCALL_FLUSH_TRACE, [0, 0, 0])
 }
 
-pub fn sys_init_user_trap() -> isize {
-    syscall(SYSCALL_INIT_USER_TRAP, [0, 0, 0])
+pub fn sys_init_user_trap(tid: usize) -> isize {
+    syscall(SYSCALL_INIT_USER_TRAP, [tid, 0, 0])
 }
 
 pub fn sys_send_msg(pid: usize, msg: usize) -> isize {
@@ -148,4 +149,8 @@ pub fn sys_gettid() -> isize {
 
 pub fn sys_waittid(tid: usize) -> isize {
     syscall(SYSCALL_WAITTID, [tid, 0, 0])
+}
+
+pub fn sys_hang() {
+    syscall(SYSCALL_HANG, [0, 0, 0]);
 }

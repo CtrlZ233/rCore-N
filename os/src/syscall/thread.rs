@@ -1,6 +1,6 @@
 use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock}, trap::{trap_handler, TrapContext}};
 use alloc::sync::Arc;
-use crate::task::{WAIT_LOCK, WAITTID_LOCK};
+use crate::task::{block_current_and_run_next, current_process, take_current_task, WAIT_LOCK, WAITTID_LOCK};
 
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
@@ -40,6 +40,13 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     add_task(Arc::clone(&new_task));
     debug!("thread create start end");
     new_task_tid as isize
+}
+
+pub fn sys_hang() -> isize {
+    let task = current_task().unwrap();
+    current_process().unwrap().acquire_inner_lock().user_trap_handler_task = Some(task);
+    block_current_and_run_next();
+    0
 }
 
 pub fn sys_gettid() -> isize {

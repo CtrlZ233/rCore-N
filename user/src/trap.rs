@@ -57,6 +57,7 @@ global_asm!(include_str!("trap.asm"));
 #[linkage = "weak"]
 #[no_mangle]
 pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
+    println!("enter trap handler");
     let ucause = ucause::read();
     let utval = utval::read();
     push_trace(U_TRAP_HANDLER + ucause.bits());
@@ -83,6 +84,8 @@ pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
                     ext_intr_handler(irq, true);
                 } else if ucause::Interrupt::from(cause) == ucause::Interrupt::UserTimer {
                     timer_intr_handler(msg);
+                } else if cause == 1 {
+                    wake_handler(msg);
                 }
             }
             // push_trace(TRAP_QUEUE_EXIT);
@@ -135,5 +138,14 @@ pub fn timer_intr_handler(time_us: usize) {
     println!(
         "[user trap default] user timer interrupt, time (us): {}",
         time_us
+    );
+}
+
+#[linkage = "weak"]
+#[no_mangle]
+pub fn wake_handler(tid: usize) {
+    println!(
+        "[user trap default] need to handle wake event: {}",
+        tid
     );
 }

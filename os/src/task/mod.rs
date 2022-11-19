@@ -13,6 +13,7 @@ use alloc::vec::Vec;
 use lazy_static::*;
 
 use spin::Mutex;
+use uart8250::Parity::No;
 use switch::__switch2;
 
 pub use context::TaskContext;
@@ -30,6 +31,19 @@ use crate::task::pid::TaskUserRes;
 lazy_static! {
     pub static ref WAIT_LOCK: Mutex<()> = Mutex::new(());
     pub static ref WAITTID_LOCK: Mutex<()> = Mutex::new(());
+}
+
+/// This function must be followed by a schedule
+pub fn block_current_task() -> *mut TaskContext {
+    let task = take_current_task().unwrap();
+    let mut task_inner = task.acquire_inner_lock();
+    task_inner.task_status = TaskStatus::Blocking;
+    &mut task_inner.task_cx as *mut TaskContext
+}
+
+pub fn block_current_and_run_next() {
+    let task_cx_ptr = block_current_task();
+    schedule(task_cx_ptr);
 }
 
 pub fn suspend_current_and_run_next() {
@@ -75,6 +89,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         let wl = WAIT_LOCK.lock();
         let pid = process.getpid();
         remove_from_pid2process(pid);
+        debug!("test2");
         let mut process_inner = process.acquire_inner_lock();
         if let Some(trap_info) = &process_inner.user_trap_info {
             trap_info.remove_user_ext_int_map();
@@ -102,10 +117,13 @@ pub fn exit_current_and_run_next(exit_code: i32) {
                 recycle_res.push(res);
             }
         }
-        recycle_res.clear();
         process_inner.children.clear();
         process_inner.memory_set.recycle_data_pages();
         process_inner.fd_table.clear();
+        process_inner.user_trap_handler_task = None;
+        drop(process_inner);
+        recycle_res.clear();
+
     }
 
     // **** release current PCB lock

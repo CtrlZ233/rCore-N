@@ -196,26 +196,30 @@ impl File for Pipe {
         // 将读协程加入到回调队列中，使得用户态的协程执行器能够唤醒读协程
         warn!("read pid is {}", pid);
         warn!("key is {}", key);
-        let process = pid2process(pid).unwrap();
-        let token = process.acquire_inner_lock().memory_set.token();
-        unsafe {
-            let vaddr = *(translate_writable_va(token, UNFI_SCHE_BUFFER).unwrap() as *const usize);
-            let vaddr = vaddr + core::mem::size_of::<Mutex<MutAllocator<32>>>();
-            warn!("exe vaddr is {:#x}", vaddr);
-            let exe = translate_writable_va(token, vaddr).unwrap() as *mut usize as *mut Executor;
-            warn!("exe paddr is {:#x}", exe as *mut usize as usize);
-            let callback_vaddr = &mut (*exe).callback_queue as *mut Vec<CoroutineId>;
-            let va = (*callback_vaddr).as_ptr() as usize;
-            warn!("callback ptr {:#x}", va);
-            let va = translate_writable_va(token, va).unwrap();
-            let len = (*callback_vaddr).len();
-            let cap = (*callback_vaddr).capacity();
-            warn!("callback ptr {:#x}", va);
-            warn!("callback len {}", len);
-            warn!("callback cap {}", cap);
-            let mut callback_vec = Vec::<CoroutineId>::from_raw_parts(va as *mut usize as *mut CoroutineId, len, cap);
-            callback_vec.push(CoroutineId::get_tid_by_usize(tid));
-        }
+        let _ = push_trap_record(pid, UserTrapRecord {
+            cause: 1,
+            message: tid,
+        });
+        // let process = pid2process(pid).unwrap();
+        // let token = process.acquire_inner_lock().memory_set.token();
+        // unsafe {
+        //     let vaddr = *(translate_writable_va(token, UNFI_SCHE_BUFFER).unwrap() as *const usize);
+        //     let vaddr = vaddr + core::mem::size_of::<Mutex<MutAllocator<32>>>();
+        //     warn!("exe vaddr is {:#x}", vaddr);
+        //     let exe = translate_writable_va(token, vaddr).unwrap() as *mut usize as *mut Executor;
+        //     warn!("exe paddr is {:#x}", exe as *mut usize as usize);
+        //     let callback_vaddr = &mut (*exe).callback_queue as *mut Vec<CoroutineId>;
+        //     let va = (*callback_vaddr).as_ptr() as usize;
+        //     warn!("callback ptr {:#x}", va);
+        //     let va = translate_writable_va(token, va).unwrap();
+        //     let len = (*callback_vaddr).len();
+        //     let cap = (*callback_vaddr).capacity();
+        //     warn!("callback ptr {:#x}", va);
+        //     warn!("callback len {}", len);
+        //     warn!("callback cap {}", cap);
+        //     let mut callback_vec = Vec::<CoroutineId>::from_raw_parts(va as *mut usize as *mut CoroutineId, len, cap);
+        //     callback_vec.push(CoroutineId::get_tid_by_usize(tid));
+        // }
     }
     // log::warn!("pipe aread");
     Box::pin(aread_work(self.clone(), buf, tid, pid, key))
@@ -224,6 +228,7 @@ impl File for Pipe {
 
 
 use core::{task::{Context, Poll}};
+use crate::trap::{push_trap_record, UserTrapRecord};
 
 
 pub struct ReadHelper(usize);

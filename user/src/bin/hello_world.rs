@@ -6,8 +6,9 @@ extern crate user_lib;
 extern crate alloc;
 
 use core::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use riscv::register::uie;
-use user_lib::{get_time, getpid, init_user_trap, set_timer, sleep};
+use riscv::register::{uie, utvec};
+use riscv::register::mtvec::TrapMode;
+use user_lib::{exit, get_time, getpid, init_user_trap, set_timer, sleep};
 static IS_TIMEOUT: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]
@@ -19,10 +20,6 @@ pub fn main() -> i32 {
         "[hello world] trap init result: {:#x}, now using timer to sleep",
         init_res
     );
-    unsafe {
-        uie::set_usoft();
-        uie::set_utimer();
-    }
     let time_us = get_time() * 1000;
     set_timer(time_us + 1000_000);
     while !IS_TIMEOUT.load(Relaxed) {}

@@ -9,6 +9,11 @@ use alloc::boxed::Box;
 
 #[no_mangle]
 pub fn main() -> i32 {
+    let init_res = init_user_trap();
+    println!(
+        "[hello world] trap init result: {:#x}, now using timer to sleep",
+        init_res
+    );
     let mut pipe_fd = [0usize; 2];
     pipe(&mut pipe_fd);
     let read_end = pipe_fd[0];
@@ -24,7 +29,7 @@ pub const BUFFER_SIZE: usize = 40;
 
 // 服务端接收用户端的请求，从管道中读取内容
 async fn server_read(fd: usize, key: usize) {
-    println!("server read start");
+    println!("server read start, cid: {}", current_cid());
     let mut buffer = [0u8; BUFFER_SIZE];
     let read_corotine = AsyncCall::new(ASYNC_SYSCALL_READ, fd, buffer.as_ptr() as usize, buffer.len(), key);
     read_corotine.await;
@@ -45,4 +50,11 @@ async fn client_write(fd: usize, key: usize) {
     let req = REQUEST;
     async_write(fd, req.as_bytes().as_ptr() as usize, req.len(), key);
     println!("client write end");
+}
+
+#[no_mangle]
+pub fn wake_handler(cid: usize) {
+    println!("wake tid: {}", cid);
+    re_back(cid);
+    // add_coroutine(Box::pin(async_wake_coroutine(cid)), 0);
 }

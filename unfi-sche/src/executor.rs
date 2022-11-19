@@ -68,13 +68,13 @@ impl Exe {
             let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
             loop {
                 let task = (*exe).fetch();
-                let prio = (*exe).priority;
-                update_prio(0, prio);
+                // let prio = (*exe).priority;
+                // update_prio(0, prio);
                 match task {
                     Some(task) => {
                         let cid = task.cid;
                         match task.execute() {
-                            Poll::Pending => { 
+                            Poll::Pending => {
                             }
                             Poll::Ready(()) => {
                                 (*exe).del_coroutine(cid);
@@ -116,6 +116,17 @@ impl Exe {
             if prio < process_prio {
                 PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
             }
+        }
+    }
+
+    pub fn re_back(cid: usize) {
+        println!("[Exec]re back func enter");
+        unsafe {
+            let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+            let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+            let _lock = (*exe).wr_lock.lock();
+            let ans = (*exe).re_back(CoroutineId(cid));
+            println!("[Exec]re back func end, prio: {:?} ans: {}", (*exe).priority, ans);
         }
     }
 }

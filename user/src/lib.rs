@@ -22,6 +22,8 @@ mod heap;
 use core::{future::Future, pin::Pin};
 use alloc::boxed::Box;
 use core::task::{Context, Poll};
+use riscv::register::mtvec::TrapMode;
+use riscv::register::{uie, utvec};
 
 
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
@@ -33,7 +35,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start(add_coroutine_addr: usize, is_waked_addr: usize, current_cid_addr: usize) {
+pub extern "C" fn _start(add_coroutine_addr: usize, is_waked_addr: usize, current_cid_addr: usize, re_back_addr: usize) {
 // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     use riscv::register::{mtvec::TrapMode, utvec};
     extern "C" {
@@ -44,6 +46,7 @@ pub extern "C" fn _start(add_coroutine_addr: usize, is_waked_addr: usize, curren
         ADD_COROUTINE_ADDR = add_coroutine_addr;
         IS_WAKED_ADDR = is_waked_addr;
         CURRENT_CID_ADDR = current_cid_addr;
+        RE_BACK_ADDR = re_back_addr;
     }
     heap::init();
     // main();
@@ -69,6 +72,7 @@ pub extern "C" fn _start(add_coroutine_addr: usize, is_waked_addr: usize, curren
 static mut ADD_COROUTINE_ADDR: usize = 0;
 static mut IS_WAKED_ADDR: usize = 0;
 static mut CURRENT_CID_ADDR: usize = 0;
+static mut RE_BACK_ADDR: usize = 0;
 
 // 用户态添加协程
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
@@ -95,6 +99,13 @@ pub fn current_cid() -> usize {
         let current_cid_fn: fn() -> usize = 
             core::mem::transmute(CURRENT_CID_ADDR);
         current_cid_fn()
+    }
+}
+
+pub fn re_back(cid: usize) {
+    unsafe {
+        let re_back_fn: fn(usize) = core::mem::transmute(RE_BACK_ADDR);
+        re_back_fn(cid);
     }
 }
 
@@ -226,7 +237,27 @@ pub fn flush_trace() -> isize {
 }
 
 pub fn init_user_trap() -> isize {
-    sys_init_user_trap()
+    let tid = sys_thread_create(user_interrupt_handler as usize, 0);
+    println!("create end");
+    let ans = sys_init_user_trap(tid as usize);
+    println!(" init user trap end");
+    ans
+
+}
+
+fn user_interrupt_handler() {
+    extern "C" {
+        fn __alltraps_u();
+    }
+    unsafe {
+        utvec::write(__alltraps_u as usize, TrapMode::Direct);
+        uie::set_usoft();
+        uie::set_utimer();
+    }
+
+    loop {
+        hang();
+    }
 }
 
 pub fn send_msg(pid: usize, msg: usize) -> isize {
@@ -261,6 +292,10 @@ pub fn waittid(tid: usize) -> isize {
             exit_code => return exit_code,
         }
     }
+}
+
+fn hang() {
+    sys_hang();
 }
 
 /******************** 异步系统调用 *********************************/
@@ -302,14 +337,15 @@ impl Future for AsyncCall {
                 _ => {0},
             };
             self.cnt += 1;
-        }
-
-        if is_waked(current_cid()) {
-            println!("current coroutine is done {}", current_cid());
-            return Poll::Ready(());
-        } else {
             return Poll::Pending;
         }
+        return Poll::Ready(());
+        // if is_waked(current_cid()) {
+        //     println!("current coroutine is done {}", current_cid());
+        //     return Poll::Ready(());
+        // } else {
+        //     return Poll::Pending;
+        // }
     
     }
 }

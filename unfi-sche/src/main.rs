@@ -22,6 +22,7 @@ use interface::{add_coroutine, poll_future, max_prio_pid, poll_kernel_future, is
 use alloc::vec;
 use syscall::*;
 use crate::config::ENTRY;
+use crate::interface::re_back;
 
 mod config;
 
@@ -65,9 +66,9 @@ extern "C" fn _start() -> usize {
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 fn primary_thread() {
     unsafe {
-        let secondary_init: fn(usize, usize, usize) = core::mem::transmute(ENTRY);
+        let secondary_init: fn(usize, usize, usize, usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
-        secondary_init(add_coroutine as usize, is_waked as usize, current_cid as usize);
+        secondary_init(add_coroutine as usize, is_waked as usize, current_cid as usize, re_back as usize);
     }
     // 主线程，在这里创建执行协程的线程，之后再进行控制
     // let mut thread = Thread::new();

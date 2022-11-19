@@ -432,4 +432,5 @@ pub enum TaskStatus {
     Ready,
     Running(usize),
     Zombie,
+    Blocking,
 }

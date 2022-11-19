@@ -3,7 +3,7 @@ const MAX_USER_TRAP_NUM: usize = 128;
 use crate::config::CPU_NUM;
 use crate::plic::Plic;
 use crate::sbi::send_ipi;
-use crate::task::{hart_id, pid2process};
+use crate::task::{add_task, hart_id, pid2process};
 use crate::task::TaskStatus::Running;
 use crate::trace::{
     push_trace, DISABLE_USER_EXT_INT_ENTER, DISABLE_USER_EXT_INT_EXIT, ENABLE_USER_EXT_INT_ENTER,
@@ -164,6 +164,15 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
             //         send_ipi(&mask as *const _ as usize);
             //     }
             // }
+            let mut task = None;
+            if pcb_inner.user_trap_handler_task.is_some() {
+                task = pcb_inner.user_trap_handler_task.take();
+            }
+            drop(pcb_inner);
+            if task.is_some() {
+                add_task(task.unwrap());
+                debug!("wake handler task");
+            }
             push_trace(PUSH_TRAP_RECORD_EXIT);
             res
         } else {
