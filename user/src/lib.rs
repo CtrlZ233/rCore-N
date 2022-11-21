@@ -24,6 +24,7 @@ use alloc::boxed::Box;
 use core::task::{Context, Poll};
 use riscv::register::mtvec::TrapMode;
 use riscv::register::{uie, utvec};
+use runtime::fun_offset::*;
 
 
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
@@ -35,43 +36,38 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start(add_coroutine_addr: usize, current_cid_addr: usize, re_back_addr: usize) {
+pub extern "C" fn _start() {
 // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
-    use riscv::register::{mtvec::TrapMode, utvec};
     extern "C" {
         fn __alltraps_u();
     }
     unsafe {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
-        ADD_COROUTINE_ADDR = add_coroutine_addr;
-        CURRENT_CID_ADDR = current_cid_addr;
-        RE_BACK_ADDR = re_back_addr;
     }
     heap::init();
-    // main();
     add_coroutine(Box::pin(async{ main(); }), runtime::PRIO_NUM - 1);
-    // exit(main());
 }
 
-static mut ADD_COROUTINE_ADDR: usize = 0;
-static mut CURRENT_CID_ADDR: usize = 0;
-static mut RE_BACK_ADDR: usize = 0;
+// 共享库的接口表地址，内核解析 elf 时填充
+#[no_mangle]
+#[link_section = ".bss.interface"]
+static mut INTERFACE_TABLE: *mut usize = 0 as *mut usize;
 
 // 用户态添加协程
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
     unsafe {
         let add_coroutine_fn: fn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) = 
-            core::mem::transmute(ADD_COROUTINE_ADDR);
+            core::mem::transmute(*INTERFACE_TABLE.add(ADD_COROUTINE) as usize);
         let pid = sys_getpid() as usize;
         add_coroutine_fn(future, prio, pid + 1);
     }
 }
 
-// 当前正在运行的协程，只能在 协程内部使用，即在 async 块内使用
+// 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {
     unsafe {
         let current_cid_fn: fn() -> usize = 
-            core::mem::transmute(CURRENT_CID_ADDR);
+            core::mem::transmute(*INTERFACE_TABLE.add(CURRENT_CID) as usize);
         current_cid_fn()
     }
 }
@@ -79,7 +75,7 @@ pub fn current_cid() -> usize {
 pub fn re_back(cid: usize) {
     let pid = getpid();
     unsafe {
-        let re_back_fn: fn(usize, usize) = core::mem::transmute(RE_BACK_ADDR);
+        let re_back_fn: fn(usize, usize) = core::mem::transmute(*INTERFACE_TABLE.add(RE_BACK) as usize);
         re_back_fn(cid, pid as usize);
     }
 }

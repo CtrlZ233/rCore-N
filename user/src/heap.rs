@@ -18,7 +18,7 @@ pub static mut HEAP: Mutex<MutAllocator<32>> = Mutex::new(MutAllocator::new());
 pub static mut EXECUTOR: Executor = Executor::new();
 
 // 托管空间 16 KiB
-const MEMORY_SIZE: usize = 128 << 12;
+const MEMORY_SIZE: usize = 0x10_0000;
 #[no_mangle]
 #[link_section = ".data.memory"]
 static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];
