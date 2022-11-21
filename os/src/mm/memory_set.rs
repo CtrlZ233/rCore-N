@@ -254,7 +254,11 @@ impl MemorySet {
         );
         debug!("map unfi_sche buffer: {:#x}", UNFI_SCHE_BUFFER);
         let data_section_vir_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
-        let data_section_phy_addr = memory_set.page_table.translate_va(VirtAddr::from(data_section_vir_addr)).unwrap();
+        let bss_section_vir_addr = elf.find_section_by_name(".bss").unwrap().address() as usize;
+        error!("bss_section_vir_addr: {:#x}", bss_section_vir_addr);
+        let bss_section_paddr = translate_writable_va(memory_set.token(), bss_section_vir_addr)
+            .unwrap() as *mut usize;
+        unsafe { *bss_section_paddr = crate::lkm::INTERFACE_TABLE as usize; }
         // 另外分配一个物理页，只存放 heap 的虚拟地址
         memory_set.push(
             MapArea::new(

@@ -7,6 +7,7 @@ use core::mem::transmute;
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
+use runtime::fun_offset::*;
 
 lazy_static! {
     pub static ref UNFI_SCHE_DATA: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("unfi-sche").unwrap().to_vec());
@@ -32,7 +33,7 @@ fn add_lkm_image(){
     // 执行共享调度器的_start() 函数
     unsafe {
         let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
-        UNFI_INTERFACE_PTR = unfi_sche_start();
+        INTERFACE_TABLE = unfi_sche_start() as *mut usize;
     }
     add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0);
     add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0);
@@ -40,24 +41,23 @@ fn add_lkm_image(){
 
 }
 
-
 pub const UNFI_SCHE_START: usize = 0x96000000usize;
 
 // 共享调度器的模块接口表指针
-pub static mut UNFI_INTERFACE_PTR: usize = 0;
+#[no_mangle]
+pub static mut INTERFACE_TABLE: *mut usize = 0 as *mut usize;
+
 // 用户进程的调度器入口
 pub fn user_entry() -> usize {
     unsafe {
-        let interface = UNFI_INTERFACE_PTR as *const usize;
-        *interface as usize
+        *INTERFACE_TABLE as usize
     }
 }
 // 获取优先级最高的用户进程
 pub fn max_prio_pid() -> usize {
     unsafe {
-        let interface = UNFI_INTERFACE_PTR as *const usize;
         // error!("max_prio_pid ptr {:#x}", *interface.add(1) as usize);
-        let max_prio_pid: fn() -> usize = transmute(*interface.add(1) as usize);
+        let max_prio_pid: fn() -> usize = transmute(*INTERFACE_TABLE.add(MAX_PRIO_PID) as usize);
         max_prio_pid()
     }
 }
@@ -65,9 +65,8 @@ pub fn max_prio_pid() -> usize {
 // 添加协程
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize) {
     unsafe {
-        let interface = UNFI_INTERFACE_PTR as *const usize;
         let add_coroutine_fn: fn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) = 
-            transmute(*interface.add(2) as usize);
+            transmute(*INTERFACE_TABLE.add(ADD_COROUTINE) as usize);
         add_coroutine_fn(future, prio, 0);
     }
 }
@@ -75,8 +74,7 @@ pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sy
 // 运行内核协程
 pub fn poll_kernel_future() {
     unsafe {
-        let interface = UNFI_INTERFACE_PTR as *const usize;
-        let poll_kernel_future: fn() = transmute(*interface.add(3) as usize);
+        let poll_kernel_future: fn() = transmute(*INTERFACE_TABLE.add(POLL_KERNEL_FUTURE) as usize);
         poll_kernel_future();
     }
 }
@@ -84,8 +82,7 @@ pub fn poll_kernel_future() {
 // 唤醒内核协程
 pub fn wake_kernel_future(cid: usize) {
     unsafe {
-        let interface = UNFI_INTERFACE_PTR as *const usize;
-        let wake_kernel_future: fn(cid: usize, pid: usize) = transmute(*interface.add(4) as usize);
+        let wake_kernel_future: fn(cid: usize, pid: usize) = transmute(*INTERFACE_TABLE.add(RE_BACK) as usize);
         wake_kernel_future(cid, 0);
     }
 }
@@ -93,8 +90,7 @@ pub fn wake_kernel_future(cid: usize) {
 // 内核当前正在运行的协程
 pub fn current_cid() -> usize {
     unsafe {
-        let interface = UNFI_INTERFACE_PTR as *const usize;
-        let current_cid: fn() -> usize = transmute(*interface.add(5) as usize);
+        let current_cid: fn() -> usize = transmute(*INTERFACE_TABLE.add(CURRENT_CID) as usize);
         current_cid()
     }
 }

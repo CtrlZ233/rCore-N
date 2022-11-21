@@ -7,6 +7,7 @@ mod task_waker;
 mod executor;
 mod config;
 mod bitmap;
+pub mod fun_offset;
 
 extern crate alloc;
 

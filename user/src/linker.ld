@@ -23,6 +23,7 @@ SECTIONS
         *(.sdata .sdata.*)
     }
     .bss : {
+        *(.bss.interface)
         *(.bss .bss.*)
         *(.sbss .sbss.*)
     }
