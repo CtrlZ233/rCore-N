@@ -133,7 +133,7 @@ impl Processor {
                 self.suspend_current();
             } else {
                 if hart_id() == 0 {
-                    crate::lkm::poll_kernel_future();
+                    unifi_exposure::poll_kernel_future();
                 }
             }
         }

@@ -5,7 +5,6 @@
 #![feature(panic_info_message)]
 #![feature(allocator_api)]
 #![feature(atomic_from_mut, inline_const)]
-#![feature(asm_sym)]
 
 #[macro_use]
 mod console;
@@ -19,7 +18,6 @@ mod interface;
 extern crate alloc;
 
 use interface::{add_coroutine, poll_future, max_prio_pid, poll_kernel_future, current_cid};
-use alloc::vec;
 use syscall::*;
 use crate::config::ENTRY;
 use crate::interface::re_back;
@@ -58,7 +56,6 @@ extern "C" fn _start() -> usize {
         INTERFACE[3] = poll_kernel_future as usize;
         INTERFACE[4] = re_back as usize;
         INTERFACE[5] = current_cid as usize;
-
         &INTERFACE as *const [usize; 10] as usize
     }
 }

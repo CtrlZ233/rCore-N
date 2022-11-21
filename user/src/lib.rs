@@ -24,7 +24,6 @@ use alloc::boxed::Box;
 use core::task::{Context, Poll};
 use riscv::register::mtvec::TrapMode;
 use riscv::register::{uie, utvec};
-use runtime::fun_offset::*;
 
 
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
@@ -45,7 +44,8 @@ pub extern "C" fn _start() {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
     }
     heap::init();
-    add_coroutine(Box::pin(async{ main(); }), runtime::PRIO_NUM - 1);
+    unifi_exposure::init_unifi_sche(unsafe { INTERFACE_TABLE as usize });
+    add_coroutine(Box::pin(async{ main(); }), unifi_exposure::PRIO_NUM - 1);
 }
 
 // 共享库的接口表地址，内核解析 elf 时填充
@@ -55,29 +55,18 @@ static mut INTERFACE_TABLE: *mut usize = 0 as *mut usize;
 
 // 用户态添加协程
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-    unsafe {
-        let add_coroutine_fn: fn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) = 
-            core::mem::transmute(*INTERFACE_TABLE.add(ADD_COROUTINE) as usize);
-        let pid = sys_getpid() as usize;
-        add_coroutine_fn(future, prio, pid + 1);
-    }
+    let pid = sys_getpid() as usize;
+    unifi_exposure::add_coroutine(future, prio, pid + 1);
 }
 
 // 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {
-    unsafe {
-        let current_cid_fn: fn() -> usize = 
-            core::mem::transmute(*INTERFACE_TABLE.add(CURRENT_CID) as usize);
-        current_cid_fn()
-    }
+    unifi_exposure::current_cid()
 }
 
 pub fn re_back(cid: usize) {
     let pid = getpid();
-    unsafe {
-        let re_back_fn: fn(usize, usize) = core::mem::transmute(*INTERFACE_TABLE.add(RE_BACK) as usize);
-        re_back_fn(cid, pid as usize);
-    }
+    unifi_exposure::re_back(cid, pid as usize);
 }
 
 #[linkage = "weak"]

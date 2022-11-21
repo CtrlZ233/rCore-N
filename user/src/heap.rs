@@ -1,10 +1,10 @@
-use alloc::{alloc::handle_alloc_error, vec, vec::Vec, collections::VecDeque};
+use alloc::{alloc::handle_alloc_error, vec, collections::VecDeque};
 use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,
 };
 use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
-use runtime::Executor;
+use unifi_exposure::Executor;
 use spin::Mutex;
 
 
@@ -39,7 +39,7 @@ pub fn init() {
         HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
     }
     unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); runtime::PRIO_NUM];
+        EXECUTOR.ready_queue = vec![VecDeque::new(); unifi_exposure::PRIO_NUM];
     }
 }
 

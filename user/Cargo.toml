@@ -27,7 +27,7 @@ heapless = "0.7.5"
 blake2 = { version = "0.10", default-features = false }
 blake3 = { version = "1.2.0", default-features = false }
 sha2 = { version = "0.10", default-features = false }
-runtime = { path = "../runtime" }
+unifi-exposure = { path = "../unifi-exposure" }
 
 [features]
 board_qemu = ["uart8250"]

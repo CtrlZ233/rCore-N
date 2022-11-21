@@ -1,5 +1,5 @@
 
-use runtime::{Executor, CoroutineId};
+use unifi_exposure::{Executor, CoroutineId};
 use crate::heap::MutAllocator;
 use spin::Mutex;
 use crate::config::UNFI_SCHE_BUFFER;
