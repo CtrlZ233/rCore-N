@@ -2,12 +2,11 @@ use super::{frame_alloc, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
-use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, TRAP_CONTEXT, UNFI_SCHE_BUFFER, USER_STACK_SIZE};
+use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, UNFI_SCHE_BUFFER};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::arch::asm;
-use core::slice::SliceIndex;
 use lazy_static::*;
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
@@ -91,13 +90,6 @@ impl MemorySet {
         );
     }
 
-    fn map_unfi_sche_buffer(&mut self, ppa: PhysAddr) {
-        self.page_table.map(
-            VirtAddr::from(UNFI_SCHE_BUFFER).into(),
-            PhysPageNum::from(ppa).into(),
-            PTEFlags::R | PTEFlags::W | PTEFlags::U
-        );
-    }
     /// Without kernel stacks.
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
@@ -199,7 +191,7 @@ impl MemorySet {
     }
     /// Include sections in elf and trampoline and TrapContext and user stack,
     /// also returns user_sp and entry point.
-    pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize, usize) {
+    pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
@@ -278,7 +270,6 @@ impl MemorySet {
             memory_set,
             user_stack_bottom,
             elf.header.pt2.entry_point() as usize,
-            data_section_vir_addr
         )
     }
     pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {

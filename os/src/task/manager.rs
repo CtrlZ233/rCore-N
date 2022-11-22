@@ -29,7 +29,7 @@ impl TaskManager {
         // May need to concern affinity
         // debug!("tasks total: {}", self.ready_queue.len());    
         // error!("max prio pid is {}", crate::lkm::max_prio_pid());
-        let prio_pid = crate::lkm::max_prio_pid();
+        let prio_pid = unifi_exposure::max_prio_pid();
         // 如果内核协程的优先级最高，则
         // if prio_pid == 0 {
         //     return None;

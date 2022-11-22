@@ -1,6 +1,4 @@
-
-
-use alloc::collections::{BTreeMap, VecDeque, BTreeSet};
+use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -13,19 +11,24 @@ use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
 
+/// 进程 Executor
 pub struct Executor {
+    /// 当前正在运行的协程 Id
     pub current: Option<CoroutineId>,
+    /// 协程 map
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
+    /// 就绪协程队列
     pub ready_queue: Vec<VecDeque<CoroutineId>>,
-    // 协程优先级位图
+    /// 协程优先级位图
     pub bitmap: BitMap,
-    // 进程最高优先级协程代表的优先级，内核可以直接访问物理地址来读取
+    /// 进程最高优先级协程代表的优先级，内核可以直接访问物理地址来读取
     pub priority: usize,
-    // 整个 Executor 的读写锁，内核读取 priority 时，可以不获取这个锁，在唤醒协程时，需要获取锁
+    /// 整个 Executor 的读写锁，内核读取 priority 时，可以不获取这个锁，在唤醒协程时，需要获取锁
     pub wr_lock: Mutex<()>,
 }
 
 impl Executor {
+    /// 
     pub const fn new() -> Self {
         Self {
             current: None,
@@ -39,6 +42,7 @@ impl Executor {
 }
 
 impl Executor {
+    /// 添加协程
     pub fn add_coroutine(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
         let lock = self.wr_lock.lock();
         let task = Coroutine::new(Mutex::new(future), prio);
@@ -51,12 +55,11 @@ impl Executor {
         }
         drop(lock);
     }
-
+    /// 判断是否还有协程
     pub fn is_empty(&self) -> bool {
         self.tasks.is_empty()
     }
-
-    // 取出优先级最高的协程 id，并且更新位图
+    /// 取出优先级最高的协程 id，并且更新位图
     pub fn fetch(&mut self) -> Option<Arc<Coroutine>> {
         let _lock = self.wr_lock.lock();
         let prio = self.priority;
@@ -74,7 +77,7 @@ impl Executor {
             Some(task)
         }
     }
-
+    /// 阻塞协程重新入队
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
         let _lock = self.wr_lock.lock();
         let prio = self.tasks.get(&cid).unwrap().prio;
@@ -85,8 +88,7 @@ impl Executor {
         }
         self.priority
     }
-
-    // 删除协程，协程已经被执行完了，在 fetch 取出 id 是就已经更新位图了，因此，这时不需要更新位图
+    /// 删除协程，协程已经被执行完了，在 fetch 取出 id 是就已经更新位图了，因此，这时不需要更新位图
     pub fn del_coroutine(&mut self, cid: CoroutineId) {
         let lock = self.wr_lock.lock();
         self.tasks.remove(&cid);

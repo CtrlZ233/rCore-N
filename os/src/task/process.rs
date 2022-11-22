@@ -1,14 +1,12 @@
-use alloc::string::String;
 use spin::{Mutex, MutexGuard};
-use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, translated_refmut, VirtAddr};
-use crate::task::{add_task, current_process, pid_alloc, PidHandle, TaskControlBlock};
+use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
+use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
 use super::pid::RecycleAllocator;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
 use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};
-use crate::println;
 use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;
 use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
@@ -140,13 +138,13 @@ impl ProcessControlBlock {
 
     pub fn new(elf_data: &[u8]) -> Arc<Self> {
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, _entry_point) = MemorySet::from_elf(elf_data);
         // allocate a pid
         let pid_handle = pid_alloc();
         let process = Arc::new(Self {
             pid: pid_handle,
-            inner: unsafe {
-                Mutex::new(ProcessControlBlockInner {
+            inner: Mutex::new(
+                ProcessControlBlockInner {
                     is_zombie: false,
                     is_sstatus_uie: false,
                     memory_set,
@@ -166,8 +164,8 @@ impl ProcessControlBlock {
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
                     user_trap_handler_task: None
-                })
-            },
+                }
+            )
         });
         // create a main thread, we should allocate ustack and trap_cx here
         let task = Arc::new(TaskControlBlock::new(
@@ -183,7 +181,7 @@ impl ProcessControlBlock {
         drop(task_inner);
         *trap_cx = TrapContext::app_init_context(
             // entry_point,
-            unsafe{ crate::lkm::user_entry() },
+            unifi_exposure::user_entry(),
             ustack_top,
             KERNEL_SPACE.lock().token(),
             kstack_top,
@@ -203,9 +201,8 @@ impl ProcessControlBlock {
     pub fn exec(self: &Arc<Self>, elf_data: &[u8]) {
         assert_eq!(self.acquire_inner_lock().thread_count(), 1);
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point, heap_ptr) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         debug!("entry_point: {}", entry_point);
-        let new_token = memory_set.token();
         // substitute memory_set
         let mut process_inner = self.acquire_inner_lock();
         process_inner.memory_set = memory_set;
@@ -221,7 +218,7 @@ impl ProcessControlBlock {
         let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
-            unsafe{ crate::lkm::user_entry() },
+            unifi_exposure::user_entry(),
             user_sp,
             KERNEL_SPACE.lock().token(),
             task.kstack.get_top(),
@@ -262,8 +259,8 @@ impl ProcessControlBlock {
         // create child process pcb
         let child = Arc::new(Self {
             pid,
-            inner: unsafe {
-                Mutex::new(ProcessControlBlockInner {
+            inner: Mutex::new(
+                ProcessControlBlockInner {
                     is_zombie: false,
                     is_sstatus_uie: false,
                     memory_set,
@@ -276,8 +273,8 @@ impl ProcessControlBlock {
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
                     user_trap_handler_task: None
-                })
-            },
+                }
+            )
         });
         // add child
         parent.children.push(Arc::clone(&child));

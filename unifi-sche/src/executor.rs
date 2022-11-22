@@ -1,5 +1,5 @@
 
-use runtime::{Executor, CoroutineId};
+use unifi_exposure::{Executor, CoroutineId};
 use crate::heap::MutAllocator;
 use spin::Mutex;
 use crate::config::UNFI_SCHE_BUFFER;
@@ -8,9 +8,8 @@ use core::pin::Pin;
 use core::future::Future;
 use core::sync::atomic::Ordering;
 use crate::interface::{update_prio, PRIO_ARRAY};
-use crate::syscall::*;
+use syscall::*;
 use core::task::Poll;
-use crate::re_back;
 
 pub struct Exe;
 
@@ -29,7 +28,7 @@ impl Exe {
         unsafe {
             let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
             let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
-            let tid = sys_gettid();
+            let tid = gettid();
             if tid != 0 {
                 sleep(50);
             }
@@ -40,7 +39,7 @@ impl Exe {
                 }
                 let task = (*exe).fetch();
                 let prio = (*exe).priority;
-                let pid = sys_getpid() as usize;
+                let pid = getpid() as usize;
                 update_prio(pid + 1, prio);
                 match task {
                     Some(task) => {
@@ -57,7 +56,7 @@ impl Exe {
                 }
             }
             if tid != 0 {
-                sys_exit(2);
+                exit(2);
             }
             sleep(1000);
         }

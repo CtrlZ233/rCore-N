@@ -2,9 +2,10 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
-#![feature(map_first_last)]
 #![feature(map_try_insert)]
 #![feature(vec_into_raw_parts)]
+#![allow(unused)]
+
 
 extern crate alloc;
 extern crate rv_plic;
@@ -16,8 +17,6 @@ extern crate log;
 
 use crate::{config::CPU_NUM, mm::init_kernel_space, sbi::send_ipi};
 use core::arch::{asm, global_asm};
-use core::hint;
-use core::sync::atomic::{AtomicBool, Ordering};
 
 #[macro_use]
 mod console;

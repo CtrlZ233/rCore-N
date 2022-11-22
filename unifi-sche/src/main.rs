@@ -5,28 +5,26 @@
 #![feature(panic_info_message)]
 #![feature(allocator_api)]
 #![feature(atomic_from_mut, inline_const)]
-#![feature(asm_sym)]
 
 #[macro_use]
 mod console;
-mod syscall;
 
 mod heap;
-// mod thread;
 mod executor;
 mod interface;
 
 extern crate alloc;
 
-use interface::{add_coroutine, poll_future, max_prio_pid, poll_kernel_future, current_cid};
-use alloc::vec;
+use interface::{
+    add_coroutine, poll_future, 
+    max_prio_pid, poll_kernel_future, 
+    current_cid, re_back
+};
 use syscall::*;
 use crate::config::ENTRY;
-use crate::interface::re_back;
 
 mod config;
 
-// static mut ENTRY: [usize; CPU_NUM] = [0usize; CPU_NUM];
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
@@ -42,7 +40,7 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     } else {
         println!("Panicked: {}", err);
     }
-    sys_exit(-1);
+    exit(-1);
 }
 
 static mut INTERFACE: [usize; 10] = [0usize; 10];
@@ -58,7 +56,6 @@ extern "C" fn _start() -> usize {
         INTERFACE[3] = poll_kernel_future as usize;
         INTERFACE[4] = re_back as usize;
         INTERFACE[5] = current_cid as usize;
-
         &INTERFACE as *const [usize; 10] as usize
     }
 }
@@ -87,7 +84,7 @@ fn primary_thread() {
     //     waittid(*tid as usize);
     // }
     
-    sys_exit(0);
+    exit(0);
 }
 
 

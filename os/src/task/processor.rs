@@ -14,7 +14,6 @@ use core::cell::RefCell;
 use riscv::register::cycle;
 
 use lazy_static::*;
-use crate::println;
 use crate::task::process::ProcessControlBlock;
 lazy_static! {
     pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();
@@ -133,7 +132,7 @@ impl Processor {
                 self.suspend_current();
             } else {
                 if hart_id() == 0 {
-                    crate::lkm::poll_kernel_future();
+                    unifi_exposure::poll_kernel_future();
                 }
             }
         }
