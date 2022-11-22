@@ -6,7 +6,6 @@ use alloc::{
     collections::BTreeMap,
     sync::Arc
 };
-use runtime::CoroutineId;
 use spin::Mutex;
 
 // key -> r_id, write coroutine can use WRMAP to find the corresponding read coroutine id 
@@ -22,7 +21,7 @@ pub fn async_sys_write(fd: usize, buf: *const u8, len: usize, key: usize) -> isi
     // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
     if let Some(kernel_cid) = WRMAP.lock().remove(&key) {
         error!("kernel_cid {}", kernel_cid);
-        crate::lkm::wake_kernel_future(kernel_cid);
+        unifi_exposure::re_back(kernel_cid, 0);
     }
     error!("async_sys_write done");
     0
@@ -44,7 +43,7 @@ pub fn async_sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: us
         // release Task lock manually to avoid deadlock
         drop(inner);
         let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
-        crate::lkm::add_coroutine(work, 0);
+        unifi_exposure::add_coroutine(work, 0, 0);
         0
     } else {
         -1
