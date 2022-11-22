@@ -4,7 +4,7 @@ use core::pin::Pin;
 use core::future::Future;
 use core::sync::atomic::Ordering;
 use crate::executor::Exe;
-use unifi_exposure::{MAX_PROC_NUM, CoroutineId};
+use unifi_exposure::MAX_PROC_NUM;
 use core::sync::atomic::AtomicUsize;
 
 #[no_mangle]

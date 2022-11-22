@@ -14,7 +14,6 @@ use core::cell::RefCell;
 use riscv::register::cycle;
 
 use lazy_static::*;
-use crate::println;
 use crate::task::process::ProcessControlBlock;
 lazy_static! {
     pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();

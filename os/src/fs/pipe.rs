@@ -174,7 +174,7 @@ impl File for Pipe {
                     //return read_size;
                 }
                 drop(ring_buffer);
-                unsafe { crate::syscall::WRMAP.lock().insert(key, unifi_exposure::current_cid()); }
+                crate::syscall::WRMAP.lock().insert(key, unifi_exposure::current_cid());
                 helper.as_mut().await;
                 continue;
             } 

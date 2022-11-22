@@ -1,5 +1,5 @@
 
-use alloc::{vec, vec::Vec, collections::VecDeque};
+use alloc::{vec, collections::VecDeque};
 use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,

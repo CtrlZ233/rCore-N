@@ -11,11 +11,12 @@ use spin::Mutex;
 
 
 
-
+/// 协程 Id
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash, Ord, PartialOrd)]
 pub struct CoroutineId(pub usize);
 
 impl CoroutineId {
+    /// 生成新的协程 Id
     pub fn generate() -> CoroutineId {
         // 任务编号计数器，任务编号自增
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -26,19 +27,21 @@ impl CoroutineId {
         }
         CoroutineId(id)
     }
-
-    pub fn get_tid_by_usize(v: usize) -> Self {
+    /// 根据 usize 生成协程 Id
+    pub fn from_val(v: usize) -> Self {
         Self(v)
     }
-
+    /// 获取协程 Id 的 usize
     pub fn get_val(&self) -> usize {
         self.0
     } 
 }
 
+/// 协程 waker，在这里只提供一个上下文
 struct CoroutineWaker(CoroutineId);
 
 impl CoroutineWaker {
+    /// 新建协程 waker
     pub fn new(cid: CoroutineId) -> Waker {
         Waker::from(Arc::new(Self(cid)))
     }
@@ -50,17 +53,20 @@ impl Wake for CoroutineWaker {
 }
 
 
-// 协程，包装了 future，优先级，以及提供上下文的 waker，内核来唤醒或者内核、外部设备发中断，在中断处理程序里面唤醒
+/// 协程，包装了 future，优先级，以及提供上下文的 waker，内核来唤醒或者内核、外部设备发中断，在中断处理程序里面唤醒
 pub struct Coroutine{
-    // 任务编号
+    /// 协程编号
     pub cid: CoroutineId,
-    // future
+    /// future
     pub future: Mutex<Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>>, 
+    /// 当前协程的优先级
     pub prio: usize,
+    /// waker
     pub waker: Arc<Waker>,
 }
 
 impl Coroutine {
+    /// 生成协程
     pub fn new(future: Mutex<Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>>, prio: usize) -> Arc<Self> {
         let cid = CoroutineId::generate();
         Arc::new(
@@ -72,7 +78,7 @@ impl Coroutine {
             }
         )
     }
-
+    /// 执行
     pub fn execute(self: Arc<Self>) -> Poll<()> {
         let waker = self.waker.clone();
         let mut context = Context::from_waker(&*waker);

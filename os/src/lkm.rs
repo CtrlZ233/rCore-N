@@ -5,8 +5,6 @@ use lazy_static::*;
 use alloc::sync::Arc;
 use core::mem::transmute;
 use alloc::boxed::Box;
-use core::pin::Pin;
-use core::future::Future;
 
 lazy_static! {
     pub static ref UNFI_SCHE_DATA: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("unifi-sche").unwrap().to_vec());

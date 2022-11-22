@@ -107,8 +107,8 @@ impl TaskControlBlock {
         Self {
             process: Arc::downgrade(&process),
             kstack,
-            inner: unsafe {
-                Mutex::new(TaskControlBlockInner {
+            inner: Mutex::new(
+                TaskControlBlockInner {
                     res: Some(res),
                     trap_cx_ppn,
                     task_cx: TaskContext::goto_trap_return(kstack_top, tid),
@@ -120,12 +120,13 @@ impl TaskControlBlock {
                     time_intr_count: 0,
                     total_cpu_cycle_count: 0,
                     last_cpu_cycle: 0
-                })
-            },
+                }
+            )
         }
 
     }
 
+    #[allow(unused)]
     pub fn create_socket(&self) -> Arc<Socket> {
         self.inner.lock().mail_box.create_socket()
     }

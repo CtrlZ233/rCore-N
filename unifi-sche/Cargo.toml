@@ -10,4 +10,5 @@ customizable-buddy = "0.0.2"
 riscv = "0.8.0"
 unifi-exposure ={ path = "../unifi-exposure"}
 spin = { version = "0.9", features = ["use_ticket_mutex"] }
+syscall = { path = "../syscall", features = ["user"] }
 

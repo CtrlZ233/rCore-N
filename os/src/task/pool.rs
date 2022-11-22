@@ -11,8 +11,7 @@ pub struct TaskPool {
 
 lazy_static! {
     pub static ref TASK_POOL: Mutex<TaskPool> = Mutex::new(TaskPool::new());
-    pub static ref PID2PCB: Mutex<BTreeMap<usize, Arc<ProcessControlBlock>>> =
-        unsafe { Mutex::new(BTreeMap::new()) };
+    pub static ref PID2PCB: Mutex<BTreeMap<usize, Arc<ProcessControlBlock>>> = Mutex::new(BTreeMap::new());
 }
 
 impl TaskPool {
