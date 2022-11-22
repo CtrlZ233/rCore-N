@@ -46,7 +46,7 @@ pub struct UnifiScheFunc(usize);
 impl UnifiScheFunc {
     fn user_entry(&self) -> usize {
         unsafe {
-            *(self.0 as *mut usize).add(PRIMARY_THREAD)
+            *(self.0 as *mut usize).add(USER_ENTRY)
         }
     }
 

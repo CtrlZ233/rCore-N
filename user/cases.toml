@@ -1,6 +1,4 @@
 cpu_load
-flush
-flush_trace
 forktest
 threads
 threads_arg
@@ -18,3 +16,4 @@ ub_loop
 user_trap_demo
 unifi-sche
 user_timer
+async_demo

@@ -1,3 +1,5 @@
+//! 共享调度器模块
+
 #![no_std]
 #![no_main]
 #![feature(default_alloc_error_handler)]
@@ -5,26 +7,22 @@
 #![feature(panic_info_message)]
 #![feature(allocator_api)]
 #![feature(atomic_from_mut, inline_const)]
+#![deny(warnings, missing_docs)]
 
 #[macro_use]
 mod console;
 
 mod heap;
 mod executor;
-mod interface;
+mod prio_array;
+mod config;
 
 extern crate alloc;
 
-use interface::{
-    add_coroutine, poll_future, 
-    max_prio_pid, poll_kernel_future, 
-    current_cid, re_back
-};
+use executor::*;
+use prio_array::max_prio_pid;
 use syscall::*;
 use crate::config::ENTRY;
-
-mod config;
-
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
@@ -43,14 +41,15 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     exit(-1);
 }
 
-static mut INTERFACE: [usize; 10] = [0usize; 10];
+// 自定义的模块接口，模块添加进地址空间之后，需要执行 _start() 函数填充这个接口表
+static mut INTERFACE: [usize; 10] = [0; 10];
 
-/// _start() 函数由内核跳转执行，返回用户进程的入口地址，以及获取最高优先级进程的函数地址
+/// _start() 函数，返回接口表的地址
 #[no_mangle]
 #[link_section = ".text.entry"]
 extern "C" fn _start() -> usize {
     unsafe {
-        INTERFACE[0] = primary_thread as usize;
+        INTERFACE[0] = user_entry as usize;
         INTERFACE[1] = max_prio_pid as usize;
         INTERFACE[2] = add_coroutine as usize;
         INTERFACE[3] = poll_kernel_future as usize;
@@ -61,7 +60,7 @@ extern "C" fn _start() -> usize {
 }
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
-fn primary_thread() {
+fn user_entry() {
     unsafe {
         let secondary_init: fn(usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
@@ -79,7 +78,7 @@ fn primary_thread() {
     //     }
     // }
 
-    poll_future();
+    poll_user_future();
     // for tid in wait_tid.iter() {
     //     waittid(*tid as usize);
     // }

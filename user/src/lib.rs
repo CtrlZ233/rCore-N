@@ -63,8 +63,8 @@ pub fn current_cid() -> usize {
 }
 
 pub fn re_back(cid: usize) {
-    let pid = getpid();
-    unifi_exposure::re_back(cid, pid as usize);
+    let pid = getpid() as usize;
+    unifi_exposure::re_back(cid, pid + 1);
 }
 
 #[linkage = "weak"]

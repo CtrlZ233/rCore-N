@@ -3,6 +3,8 @@ use std::io::{Result, Write};
 
 fn main() {
     println!("cargo:rerun-if-changed=../user/src/");
+    println!("cargo:rerun-if-changed=/src/");
+    println!("cargo:rerun-if-changed=../user/cases.toml");
     insert_app_data().unwrap();
 }
 
