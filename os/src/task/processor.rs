@@ -126,18 +126,16 @@ impl Processor {
     }
 
     pub fn run(&self) {
-        if hart_id() != 0 {
-            loop {
-                if let Some(task) = fetch_task() {
-                    self.run_next(task);
-                    self.suspend_current();
-                }
-            }
-        } else {
-            loop {
+        loop {
+            if hart_id() == 0 {
                 unifi_exposure::poll_kernel_future();
             }
+            if let Some(task) = fetch_task() {
+                self.run_next(task);
+                self.suspend_current();
+            }
         }
+
     }
     pub fn take_current(&self) -> Option<Arc<TaskControlBlock>> {
         self.inner.borrow_mut().current.take()
