@@ -23,7 +23,7 @@ pub fn async_sys_write(fd: usize, buf: *const u8, len: usize, key: usize) -> isi
         error!("kernel_cid {}", kernel_cid);
         unifi_exposure::re_back(kernel_cid, 0);
     }
-    error!("async_sys_write done");
+    // error!("async_sys_write done");
     0
 }
 

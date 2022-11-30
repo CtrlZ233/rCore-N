@@ -10,11 +10,12 @@ use crate::{
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
+use crate::config::MAX_THREAD_NUM;
 
 /// 进程 Executor
 pub struct Executor {
     /// 当前正在运行的协程 Id
-    pub current: Option<CoroutineId>,
+    pub currents: [Option<CoroutineId>; MAX_THREAD_NUM],
     /// 协程 map
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
     /// 就绪协程队列
@@ -31,7 +32,7 @@ impl Executor {
     /// 
     pub const fn new() -> Self {
         Self {
-            current: None,
+            currents: [None; MAX_THREAD_NUM],
             tasks: BTreeMap::new(),
             ready_queue: Vec::new(),
             bitmap: BitMap(0),
@@ -60,11 +61,12 @@ impl Executor {
         self.tasks.is_empty()
     }
     /// 取出优先级最高的协程 id，并且更新位图
-    pub fn fetch(&mut self) -> Option<Arc<Coroutine>> {
+    pub fn fetch(&mut self, tid: usize) -> Option<Arc<Coroutine>> {
+        assert!(tid < MAX_THREAD_NUM);
         let _lock = self.wr_lock.lock();
         let prio = self.priority;
         if prio == PRIO_NUM {
-            self.current = None;
+            self.currents[tid] = None;
             None
         } else {
             let cid = self.ready_queue[prio].pop_front().unwrap();
@@ -73,7 +75,7 @@ impl Executor {
                 self.bitmap.update(prio, false);
                 self.priority = self.bitmap.get_priority();
             }
-            self.current = Some(cid);
+            self.currents[tid] = Some(cid);
             Some(task)
         }
     }

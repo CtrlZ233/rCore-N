@@ -59,7 +59,7 @@ pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sy
 
 // 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {
-    unifi_exposure::current_cid()
+    unifi_exposure::current_cid(false)
 }
 
 pub fn re_back(cid: usize) {
@@ -75,11 +75,8 @@ fn main() -> i32 {
 
 pub fn init_user_trap() -> isize {
     let tid = thread_create(user_interrupt_handler as usize, 0);
-    println!("create end");
     let ans = sys_init_user_trap(tid as usize);
-    println!(" init user trap end");
     ans
-
 }
 
 fn user_interrupt_handler() {

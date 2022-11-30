@@ -126,14 +126,16 @@ impl Processor {
     }
 
     pub fn run(&self) {
-        loop {
-            if let Some(task) = fetch_task() {
-                self.run_next(task);
-                self.suspend_current();
-            } else {
-                if hart_id() == 0 {
-                    unifi_exposure::poll_kernel_future();
+        if hart_id() != 0 {
+            loop {
+                if let Some(task) = fetch_task() {
+                    self.run_next(task);
+                    self.suspend_current();
                 }
+            }
+        } else {
+            loop {
+                unifi_exposure::poll_kernel_future();
             }
         }
     }

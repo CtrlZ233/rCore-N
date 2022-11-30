@@ -42,32 +42,32 @@ pub fn main() -> i32 {
 
 // 服务端接收用户端的请求，从管道中读取内容
 async fn server(fd1: usize, fd2: usize, key: usize) {
-    println!("server read start, cid: {}", current_cid());
+    // println!("server read start, cid: {}", current_cid());
     let mut buffer = [0u8; BUFFER_SIZE];
     read(fd1, &mut buffer);
     let resp = REQUEST;
     async_write(fd2, resp.as_bytes().as_ptr() as usize, resp.len(), key);
-    println!("server read end");
+    // println!("server read end");
 }
 
 // 客户端发送请求，向管道中写请求内容
 async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
-    println!("client write start");
+    // println!("client write start");
     let req = REQUEST;
     async_write(fd1, req.as_bytes().as_ptr() as usize, req.len(), key1);
     
     let buffer = [0u8; BUFFER_SIZE];
     let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
     ac_r.await;
-    print!("------------------buffer: ");
+    // print!("------------------buffer: ");
     for c in buffer {
         if c != 0 {
             print!("{}", c as char);
         }
     }
-    println!("");
+    // println!("");
 
-    println!("client write end");
+    // println!("client write end");
 }
 
 #[no_mangle]

@@ -168,17 +168,17 @@ impl File for Pipe {
             let mut ring_buffer = s.buffer.lock();
             let loop_read = ring_buffer.available_read();
             if loop_read == 0 {
-                log::warn!("read_size is 0");
+                error!("read_size is 0");
                 if ring_buffer.all_write_ends_closed() {
                     break ;
                     //return read_size;
                 }
                 drop(ring_buffer);
-                crate::syscall::WRMAP.lock().insert(key, unifi_exposure::current_cid());
+                crate::syscall::WRMAP.lock().insert(key, unifi_exposure::current_cid(true));
                 helper.as_mut().await;
                 continue;
             } 
-            log::warn!("read_size is {}", loop_read);  
+            error!("read_size is {}", loop_read);
             // read at most loop_read bytes
             for _ in 0..loop_read {
                 if let Some(byte_ref) = buf_iter.next() {

@@ -79,11 +79,11 @@ impl UnifiScheFunc {
         }
     }
 
-    fn current_cid(&self) -> usize {
+    fn current_cid(&self, is_kernel: bool) -> usize {
         unsafe {
-            let current_cid_fn: fn() -> usize = 
+            let current_cid_fn: fn(bool) -> usize =
             core::mem::transmute(*(self.0 as *mut usize).add(CURRENT_CID));
-            current_cid_fn()
+            current_cid_fn(is_kernel)
         }
     }
 }
@@ -115,6 +115,6 @@ pub fn re_back(cid: usize, pid: usize) {
     UNIFI_SCHE.get().unwrap().re_back(cid, pid);
 }
 /// 获取当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
-pub fn current_cid() -> usize {
-    UNIFI_SCHE.get().unwrap().current_cid()
+pub fn current_cid(is_kernel: bool) -> usize {
+    UNIFI_SCHE.get().unwrap().current_cid(is_kernel)
 }

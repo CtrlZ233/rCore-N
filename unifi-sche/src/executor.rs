@@ -10,6 +10,7 @@ use core::sync::atomic::Ordering;
 use crate::prio_array::{update_prio, PRIO_ARRAY};
 use syscall::*;
 use core::task::Poll;
+use crate::MAX_THREAD_NUM;
 
 /// 添加协程，内核和用户态都可以调用
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) {
@@ -27,23 +28,19 @@ pub fn poll_user_future() {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+        let pid = getpid() as usize;
         let tid = gettid();
-        if tid != 0 {
-            sleep(50);
-        }
         loop {
             if (*exe).is_empty() {
                 println!("ex is empty");
                 break;
             }
-            let task = (*exe).fetch();
+            let task = (*exe).fetch(tid as usize);
             // 每次取出协程之后，需要更新优先级标记
             let prio = (*exe).priority;
-            let pid = getpid() as usize;
             update_prio(pid + 1, prio);
             match task {
                 Some(task) => {
-                    sleep(10);
                     let cid = task.cid;
                     match task.execute() {
                         Poll::Pending => {  }
@@ -58,7 +55,6 @@ pub fn poll_user_future() {
         if tid != 0 {
             exit(2);
         }
-        sleep(1000);
     }
 }
 /// 内核执行协程
@@ -67,7 +63,7 @@ pub fn poll_kernel_future() {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
         loop {
-            let task = (*exe).fetch();
+            let task = (*exe).fetch(0);
             // 更新优先级标记
             let prio = (*exe).priority;
             update_prio(0, prio);
@@ -90,11 +86,15 @@ pub fn poll_kernel_future() {
     }
 }
 /// 获取当前正在执行的协程 id
-pub fn current_cid() -> usize {
+pub fn current_cid(is_kernel: bool) -> usize {
+    let tid = if is_kernel { 0 } else {
+        gettid() as usize
+    };
+    assert!(tid < MAX_THREAD_NUM);
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
-        (*exe).current.as_mut().unwrap().get_val()
+        (*exe).currents[tid].as_mut().unwrap().get_val()
     }
 }
 

@@ -69,8 +69,8 @@ pub fn sys_waittid(tid: usize) -> i32 {
     let process = task.process.upgrade().unwrap();
     let wtl = WAITTID_LOCK.lock();
     // warn!("wait tid: {} 2", tid);
-    let task_inner = task.acquire_inner_lock();
     let mut process_inner = process.acquire_inner_lock();
+    let task_inner = task.acquire_inner_lock();
     // a thread cannot wait for itself
     if task_inner.res.as_ref().unwrap().tid == tid {
         drop(wtl);
