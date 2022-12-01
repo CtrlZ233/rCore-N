@@ -11,6 +11,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
         // debug!("sys_write {} {}", fd, len);
     }
+    // debug!("buffer len: {}", len);
     let token = current_user_token();
     let process = current_process().unwrap();
     let inner = process.acquire_inner_lock();

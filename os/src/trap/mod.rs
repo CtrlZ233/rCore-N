@@ -165,6 +165,8 @@ pub fn trap_return() -> ! {
         fn __alltraps();
         fn __restore();
     }
+
+    // debug!("current pid: {}, tid: {}", current_process().unwrap().pid.0, sys_gettid());
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
     // trace!("return to user, trap frame: {:x?}", current_trap_cx());
     push_trace(S_TRAP_RETURN + scause::read().bits());

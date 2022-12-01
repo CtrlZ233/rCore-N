@@ -1,6 +1,6 @@
 pub const USER_STACK_SIZE: usize = 0x4000;
 pub const KERNEL_STACK_SIZE: usize = 0x4000;
-pub const KERNEL_HEAP_SIZE: usize = 0x30_0000;
+pub const KERNEL_HEAP_SIZE: usize = 0x200_0000;
 
 #[cfg(feature = "board_qemu")]
 pub const MEMORY_END: usize = 0x84000000;
@@ -24,5 +24,5 @@ pub const CLOCK_FREQ: usize = 12500000;
 #[cfg(feature = "board_lrv")]
 pub const CLOCK_FREQ: usize = 10_000_000;
 
-pub const CPU_NUM: usize = 4;
+pub const CPU_NUM: usize = 1;
 pub const TRACE_SIZE: usize = 0x1000_0000; // 256M

@@ -31,25 +31,32 @@ pub fn poll_user_future() {
         let pid = getpid() as usize;
         let tid = gettid();
         loop {
+            // println!("test 1 pid: {}", pid);
             if (*exe).is_empty() {
                 println!("ex is empty");
                 break;
             }
+            // println!("test 2 pid: {}", pid);
             let task = (*exe).fetch(tid as usize);
             // 每次取出协程之后，需要更新优先级标记
             let prio = (*exe).priority;
             update_prio(pid + 1, prio);
+            // println!("test 3 pid: {}", pid);
             match task {
                 Some(task) => {
                     let cid = task.cid;
                     match task.execute() {
-                        Poll::Pending => {  }
+                        Poll::Pending => {
+                            // println!("test 4 pid: {}", pid);
+                        }
                         Poll::Ready(()) => {
                             (*exe).del_coroutine(cid);
                         }
                     };
                 }
-                _ => { }
+                _ => {
+                    // println!("test 5 pid: {}", pid);
+                }
             }
         }
         if tid != 0 {
@@ -100,7 +107,7 @@ pub fn current_cid(is_kernel: bool) -> usize {
 
 /// 协程重新入队，手动执行唤醒的过程，内核和用户都会调用这个函数
 pub fn re_back(cid: usize, pid: usize) {
-    println!("[Exec]re back func enter");
+    // println!("[Exec]re back func enter");
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
