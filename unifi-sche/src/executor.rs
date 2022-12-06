@@ -1,7 +1,5 @@
 
 use unifi_exposure::{Executor, CoroutineId};
-use crate::heap::MutAllocator;
-use spin::Mutex;
 use crate::config::UNFI_SCHE_BUFFER;
 use alloc::boxed::Box;
 use core::pin::Pin;
@@ -11,12 +9,13 @@ use crate::prio_array::{update_prio, PRIO_ARRAY};
 use syscall::*;
 use core::task::Poll;
 use crate::MAX_THREAD_NUM;
+use buddy_system_allocator::LockedHeap;
 
 /// 添加协程，内核和用户态都可以调用
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-        let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         (*exe).add_coroutine(future, prio);
         // 更新优先级标记
         let prio = (*exe).priority;
@@ -27,7 +26,7 @@ pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sy
 pub fn poll_user_future() {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-        let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         let pid = getpid() as usize;
         let tid = gettid();
         loop {
@@ -61,7 +60,7 @@ pub fn poll_user_future() {
 pub fn poll_kernel_future() {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-        let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         loop {
             let task = (*exe).fetch(0);
             // 更新优先级标记
@@ -93,7 +92,7 @@ pub fn current_cid(is_kernel: bool) -> usize {
     assert!(tid < MAX_THREAD_NUM);
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-        let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         (*exe).currents[tid].as_mut().unwrap().get_val()
     }
 }
@@ -103,7 +102,7 @@ pub fn re_back(cid: usize, pid: usize) {
     // println!("[Exec]re back func enter");
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-        let exe = (heapptr + core::mem::size_of::<Mutex<MutAllocator<32>>>()) as *mut usize as *mut Executor;
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         let prio = (*exe).re_back(CoroutineId(cid));
         // 重新入队之后，需要检查优先级
         let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);

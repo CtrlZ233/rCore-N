@@ -1,13 +1,8 @@
 use core::{
     alloc::{GlobalAlloc, Layout},
-    ptr::NonNull,
 };
-use alloc::alloc::handle_alloc_error;
-use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
-use spin::Mutex;
 use crate::config::UNFI_SCHE_BUFFER;
-
-pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
+use buddy_system_allocator::LockedHeap;
 
 /// 共享代码中默认的分配器，使用的是内核和用户程序各自的堆
 /// 前提：堆的虚拟地址都保存在 UNFI_SCHE_BUFFER 这个虚拟地址中
@@ -23,18 +18,14 @@ unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-        let heap = heapptr as *mut usize as *mut Mutex<MutAllocator<32>>;
-        if let Ok((ptr, _)) = (*heap).lock().allocate_layout::<u8>(layout) {
-            ptr.as_ptr()
-        } else {
-            handle_alloc_error(layout)
-        }
+        let heap = heapptr as *mut usize as *mut LockedHeap;
+        (*heap).alloc(layout)
     }
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
-        let heap = heapptr as *mut usize as *mut Mutex<MutAllocator<32>>;
-        (*heap).lock().deallocate_layout(NonNull::new(ptr).unwrap(), layout)
+        let heap = heapptr as *mut usize as *mut LockedHeap;
+        (*heap).dealloc(ptr, layout)
     }
 }

@@ -8,6 +8,7 @@ use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
 use unifi_exposure::Executor;
 use spin::Mutex;
 use crate::config::KERNEL_HEAP_SIZE;
+use buddy_system_allocator::LockedHeap;
 
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
@@ -17,7 +18,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
 #[no_mangle]
 #[link_section = ".data.heap"]
-pub static mut HEAP: Mutex<MutAllocator<32>> = Mutex::new(MutAllocator::new());
+pub static mut HEAP: LockedHeap = LockedHeap::empty();
 
 #[no_mangle]
 #[link_section = ".data.executor"]
@@ -33,10 +34,10 @@ pub fn init_heap() {
 
     unsafe {
         HEAP.lock().init(
-            core::mem::size_of::<usize>().trailing_zeros() as _,
-            NonNull::new(MEMORY.as_mut_ptr()).unwrap(),
+            MEMORY.as_ptr() as usize,
+            KERNEL_HEAP_SIZE,
         );
-        HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
+        // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
         
     }
     // error!("heap {:#x}", unsafe{ &mut HEAP as *mut Mutex<MutAllocator<32>> as usize });
@@ -57,16 +58,12 @@ static GLOBAL: Global = Global;
 unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if let Ok((ptr, _)) = HEAP.lock().allocate_layout::<u8>(layout) {
-            ptr.as_ptr()
-        } else {
-            handle_alloc_error(layout)
-        }
+        HEAP.alloc(layout)
     }
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        HEAP.lock().deallocate_layout(NonNull::new(ptr).unwrap(), layout)
+        HEAP.dealloc(ptr, layout)
     }
 }
 
