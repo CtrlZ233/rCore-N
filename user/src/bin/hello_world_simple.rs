@@ -25,9 +25,11 @@ pub fn main() -> i32 {
 }
 
 async fn test() {
-    println!("hello_world test async, hart_id: {}, tid: {}", hart_id(), gettid());
+    // println!("hello_world test async, hart_id: {}, tid: {}", hart_id(), gettid());
+    sleep(5);
 }
 
 async fn test1() {
-    println!("hello_world test async  33333, hart_id: {}, tid: {}", hart_id(), gettid());
+    // println!("hello_world test async  33333, hart_id: {}, tid: {}", hart_id(), gettid());
+    sleep(5);
 }

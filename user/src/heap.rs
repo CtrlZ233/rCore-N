@@ -1,4 +1,5 @@
 use alloc::{alloc::handle_alloc_error, vec, collections::VecDeque};
+use alloc::collections::BTreeMap;
 use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,
@@ -18,7 +19,7 @@ pub static mut HEAP: Mutex<MutAllocator<32>> = Mutex::new(MutAllocator::new());
 pub static mut EXECUTOR: Executor = Executor::new();
 
 // 托管空间 16 KiB
-const MEMORY_SIZE: usize = 32 << 16;
+const MEMORY_SIZE: usize = 32 << 18;
 #[no_mangle]
 #[link_section = ".data.memory"]
 static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];

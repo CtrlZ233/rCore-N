@@ -8,7 +8,7 @@ edition = "2018"
 [dependencies]
 bitflags = "1.2.1"
 customizable-buddy = "0.0.2"
-
+buddy_system_allocator = "0.6"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 riscv = { git = "https://github.com/duskmoon314/riscv", branch = "extN", features = [
     "inline-asm",

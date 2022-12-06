@@ -31,32 +31,25 @@ pub fn poll_user_future() {
         let pid = getpid() as usize;
         let tid = gettid();
         loop {
-            // println!("test 1 pid: {}", pid);
             if (*exe).is_empty() {
                 println!("ex is empty");
                 break;
             }
-            // println!("test 2 pid: {}", pid);
             let task = (*exe).fetch(tid as usize);
             // 每次取出协程之后，需要更新优先级标记
             let prio = (*exe).priority;
             update_prio(pid + 1, prio);
-            // println!("test 3 pid: {}", pid);
             match task {
                 Some(task) => {
                     let cid = task.cid;
                     match task.execute() {
-                        Poll::Pending => {
-                            // println!("test 4 pid: {}", pid);
-                        }
+                        Poll::Pending => { }
                         Poll::Ready(()) => {
                             (*exe).del_coroutine(cid);
                         }
                     };
                 }
-                _ => {
-                    // println!("test 5 pid: {}", pid);
-                }
+                _ => { }
             }
         }
         if tid != 0 {

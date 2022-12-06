@@ -14,10 +14,13 @@ pub const BUFFER_SIZE: usize = 4096;        // 缓冲区大小
 #[no_mangle]
 pub fn main() -> i32 {
     let pid = getpid();
+    let start = get_time();
     let init_res = init_user_trap();
+    let end = get_time();
+
     println!(
-        "[hello world] trap init result: {:#x}, pid: {}",
-        init_res, pid
+        "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
+        init_res, pid, end - start
     );
     let mut key: usize = 1;
     for i in 0..PAIR_NUM {
@@ -49,7 +52,6 @@ async fn server(fd1: usize, fd2: usize, key: usize) {
     // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd1, buffer.as_ptr() as usize, buffer.len(), key - 1);
     // ac_r.await;
     read(fd1, &mut buffer);
-    close(fd1);
     let resp = REQUEST;
     async_write(fd2, resp.as_bytes().as_ptr() as usize, resp.len(), key);
     // println!("server read end");
