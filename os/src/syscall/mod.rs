@@ -35,7 +35,7 @@ use crate::trace::{push_trace, TRACE_SYSCALL_ENTER, TRACE_SYSCALL_EXIT};
 use fs::*;
 use process::*;
 pub use crate::syscall::thread::{sys_gettid, sys_thread_create, sys_waittid};
-pub use async_wr::WRMAP;
+pub use async_wr::{WRMAP, AsyncKey};
 
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);

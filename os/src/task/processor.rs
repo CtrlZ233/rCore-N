@@ -15,6 +15,7 @@ use riscv::register::cycle;
 
 use lazy_static::*;
 use crate::task::process::ProcessControlBlock;
+use crate::task::suspend_current_and_run_next;
 lazy_static! {
     pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();
 }

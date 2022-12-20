@@ -62,24 +62,25 @@ extern "C" fn _start() -> usize {
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 fn user_entry() {
-    let start = get_time();
     unsafe {
         let secondary_init: fn(usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
         secondary_init(&INTERFACE as *const [usize; 10] as usize);
     }
+    // println!("test test");
     // 主线程，在这里创建执行协程的线程，之后再进行控制
     // let mut thread = Thread::new();
     // thread.execute();
     let mut wait_tid = vec![];
-    let max_len = MAX_THREAD_NUM - 2;
-    // let max_len = 0;
+    // let max_len = MAX_THREAD_NUM - 2;
+    let max_len = 3;
     let pid = getpid();
-    if pid != 0 {
+    if pid == 0 {
         for _ in 0..max_len {
             wait_tid.push(thread_create(poll_user_future as usize, 0));
         }
     }
+    let start = get_time();
 
     poll_user_future();
     for tid in wait_tid.iter() {

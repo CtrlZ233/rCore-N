@@ -30,7 +30,7 @@ impl Pipe {
     }
 }
 
-const RING_BUFFER_SIZE: usize = 32;
+const RING_BUFFER_SIZE: usize = 4096;
 
 #[derive(Copy, Clone, PartialEq)]
 enum RingBufferStatus {
@@ -141,9 +141,11 @@ impl File for Pipe {
         let mut buf_iter = buf.into_iter();
         let mut write_size = 0usize;
         loop {
+
             let mut ring_buffer = self.buffer.lock();
             let loop_write = ring_buffer.available_write();
             if loop_write == 0 {
+                debug!("iter ++");
                 drop(ring_buffer);
                 suspend_current_and_run_next();
                 continue;
@@ -158,6 +160,7 @@ impl File for Pipe {
                 }
             }
         }
+        debug!("pipe write end");
     }
     fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         async fn aread_work(s: Pipe, _buf: UserBuffer, tid: usize, pid: usize, key: usize) {
@@ -168,17 +171,17 @@ impl File for Pipe {
             let mut ring_buffer = s.buffer.lock();
             let loop_read = ring_buffer.available_read();
             if loop_read == 0 {
-                error!("read_size is 0");
+                debug!("read_size is 0");
                 if ring_buffer.all_write_ends_closed() {
                     break ;
                     //return read_size;
                 }
                 drop(ring_buffer);
-                crate::syscall::WRMAP.lock().insert(key, unifi_exposure::current_cid(true));
+                crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, unifi_exposure::current_cid(true));
                 helper.as_mut().await;
                 continue;
-            } 
-            error!("read_size is {}", loop_read);
+            }
+            debug!("read_size is {}", loop_read);
             // read at most loop_read bytes
             for _ in 0..loop_read {
                 if let Some(byte_ref) = buf_iter.next() {
@@ -191,8 +194,8 @@ impl File for Pipe {
             }
         }
         // 将读协程加入到回调队列中，使得用户态的协程执行器能够唤醒读协程
-        warn!("read pid is {}", pid);
-        warn!("key is {}", key);
+        debug!("read pid is {}", pid);
+        debug!("key is {}", key);
         let _ = push_trap_record(pid, UserTrapRecord {
             cause: 1,
             message: tid,

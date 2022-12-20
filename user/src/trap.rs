@@ -57,7 +57,7 @@ global_asm!(include_str!("trap.asm"));
 #[linkage = "weak"]
 #[no_mangle]
 pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
-    println!("enter trap handler");
+    // println!("enter trap handler");
     let ucause = ucause::read();
     let utval = utval::read();
     push_trace(U_TRAP_HANDLER + ucause.bits());

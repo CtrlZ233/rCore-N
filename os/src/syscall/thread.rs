@@ -1,6 +1,6 @@
 use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock}, trap::{trap_handler, TrapContext}};
 use alloc::sync::Arc;
-use crate::task::{block_current_and_run_next, current_process, take_current_task, WAIT_LOCK, WAITTID_LOCK};
+use crate::task::{block_current_and_run_next, current_process, suspend_current_and_run_next, take_current_task, WAIT_LOCK, WAITTID_LOCK};
 
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
@@ -44,8 +44,16 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
 
 pub fn sys_hang() -> isize {
     let task = current_task().unwrap();
-    current_process().unwrap().acquire_inner_lock().user_trap_handler_task = Some(task);
-    block_current_and_run_next();
+    let process = task.process.upgrade().unwrap();
+    let mut process_inner = process.acquire_inner_lock();
+    if process_inner.user_trap_info.is_some() && process_inner.user_trap_info.as_ref().unwrap().get_trap_queue().is_empty() {
+        process_inner.user_trap_handler_task = Some(task);
+        drop(process_inner);
+        block_current_and_run_next();
+    } else {
+        drop(process_inner);
+        suspend_current_and_run_next();
+    }
     0
 }
 

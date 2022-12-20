@@ -1,6 +1,7 @@
 use super::TaskControlBlock;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use unifi_exposure::max_prio_pid;
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
@@ -26,28 +27,28 @@ impl TaskManager {
         }
     }
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        // May need to concern affinity
-        // debug!("tasks total: {}", self.ready_queue.len());    
-        // error!("max prio pid is {}", crate::lkm::max_prio_pid());
-        let prio_pid = unifi_exposure::max_prio_pid();
-        // 如果内核协程的优先级最高，则
-        // if prio_pid == 0 {
-        //     return None;
+        // // May need to concern affinity
+        // debug!("tasks total: {}", self.ready_queue.len());
+        // // error!("max prio pid is {}", crate::lkm::max_prio_pid());
+        // let prio_pid = unifi_exposure::max_prio_pid();
+        // // 如果内核协程的优先级最高，则
+        // // if prio_pid == 0 {
+        // //     return None;
+        // // }
+        // let n = self.ready_queue.len();
+        // if n == 0 { return None; }
+        // let mut peek;
+        // let mut cnt = 0;
+        // loop {
+        //     peek = self.ready_queue.pop_front().unwrap();
+        //     let pid = peek.process.upgrade().unwrap().getpid();
+        //     if pid == prio_pid {
+        //         return Some(peek);
+        //     }
+        //     self.ready_queue.push_back(peek);
+        //     cnt += 1;
+        //     if cnt >= n { break; }
         // }
-        let n = self.ready_queue.len();
-        if n == 0 { return None; }
-        let mut peek;
-        let mut cnt = 0;
-        loop {
-            peek = self.ready_queue.pop_front().unwrap();
-            let pid = peek.process.upgrade().unwrap().getpid();
-            if pid == prio_pid {
-                return Some(peek);
-            }
-            self.ready_queue.push_back(peek);
-            cnt += 1;
-            if cnt >= n { break; }
-        }
         self.ready_queue.pop_front()
     }
 
