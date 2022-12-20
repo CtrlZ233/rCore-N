@@ -10,6 +10,7 @@ use crate::fs::{File, Stdin, Stdout};
 use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;
 use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
+use crate::sync::{SimpleMutex, Condvar};
 
 pub struct ProcessControlBlock {
     // immutable
@@ -31,6 +32,8 @@ pub struct ProcessControlBlockInner {
     pub task_res_allocator: RecycleAllocator,
     pub user_trap_handler_tid: usize,
     pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
+    pub mutex_list: Vec<Option<Arc<dyn SimpleMutex>>>,
+    pub condvar_list: Vec<Option<Arc<Condvar>>>,
 }
 
 impl ProcessControlBlockInner {
@@ -163,7 +166,9 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
-                    user_trap_handler_task: None
+                    user_trap_handler_task: None,
+                    mutex_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 }
             )
         });
@@ -272,7 +277,9 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
-                    user_trap_handler_task: None
+                    user_trap_handler_task: None,
+                    mutex_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 }
             )
         });
