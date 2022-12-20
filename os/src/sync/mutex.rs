@@ -1,5 +1,6 @@
 use spin::Mutex;
-use crate::task::{suspend_current_and_run_next, TaskControlBlock, current_task, block_current_and_run_next, add_task};
+use crate::task::{suspend_current_and_run_next, TaskControlBlock, current_task,
+    block_current_and_run_next, add_task};
 use alloc::{collections::VecDeque,sync::Arc};
 pub trait SimpleMutex: Sync + Send {
     fn lock(&self);

@@ -28,6 +28,13 @@ const SYSCALL_GETTID: usize = 1001;
 const SYSCALL_WAITTID: usize = 1002;
 const SYSCALL_HANG: usize = 1003;
 
+const SYSCALL_MUTEX_CREATE: usize = 1010;
+const SYSCALL_MUTEX_LOCK: usize = 1011;
+const SYSCALL_MUTEX_UNLOCK: usize = 1012;
+
+const SYSCALL_CONDVAR_CREATE: usize = 1030;
+const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
+const SYSCALL_CONDVAR_WAIT: usize = 1032;
 #[repr(C)]
 #[derive(Debug)]
 pub struct TimeVal {
@@ -205,3 +212,59 @@ pub fn waittid(tid: usize) -> isize {
 pub fn hang() {
     unsafe { syscall0(SYSCALL_HANG); }
 }
+
+pub fn sys_mutex_create(blocking: bool) -> isize {
+    unsafe {
+        syscall1(SYSCALL_MUTEX_CREATE, blocking as usize)
+    }
+}
+
+pub fn sys_mutex_lock(id: usize) -> isize {
+    unsafe {
+        syscall1(SYSCALL_MUTEX_LOCK, id)
+    }
+}
+
+pub fn sys_mutex_unlock(id: usize) -> isize {
+    unsafe {
+        syscall1(SYSCALL_MUTEX_UNLOCK, id)
+    }
+}
+
+// pub fn sys_semaphore_create(res_count: usize) -> isize {
+//     unsafe {
+//         syscall1(SYSCALL_SEMAPHORE_CREATE, res_count)
+//     }
+    
+// }
+
+// pub fn sys_semaphore_up(sem_id: usize) -> isize {
+//     unsafe {
+//         syscall1(SYSCALL_SEMAPHORE_UP, sem_id)
+//     }
+// }
+
+// pub fn sys_semaphore_down(sem_id: usize) -> isize {
+//     unsafe {
+//         syscall1(SYSCALL_SEMAPHORE_DOWN, sem_id)
+//     }
+// }
+
+pub fn sys_condvar_create(_arg: usize) -> isize {
+    unsafe {
+        syscall1(SYSCALL_CONDVAR_CREATE, _arg)
+    }   
+}
+
+pub fn sys_condvar_signal(condvar_id: usize) -> isize {
+    unsafe {
+        syscall1(SYSCALL_CONDVAR_SIGNAL, condvar_id)
+    }
+}
+
+pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
+    unsafe {
+        syscall2(SYSCALL_CONDVAR_WAIT, condvar_id, mutex_id)
+    }
+}
+
