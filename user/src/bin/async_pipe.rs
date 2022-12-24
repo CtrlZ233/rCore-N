@@ -53,8 +53,10 @@ pub fn main() -> i32 {
 async fn server(fd1: usize, fd2: usize, key: usize) {
     // println!("server read start, tid: {}", gettid());
     let mut buffer = [0u8; BUFFER_SIZE];
-    let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd1, buffer.as_ptr() as usize, buffer.len(), key - 1);
-    ac_r.await;
+    let buffer_ptr = buffer.as_ptr() as usize;
+    async_read(ASYNC_SYSCALL_READ, fd1, buffer_ptr, buffer.len(), key - 1, current_cid()).await;
+    // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd1, buffer.as_ptr() as usize, buffer.len(), key - 1);
+    // ac_r.await;
     // read(fd1, &mut buffer);
     let resp = DATA_S;
     async_write(fd2, resp.as_bytes().as_ptr() as usize, resp.len(), key);
@@ -69,8 +71,10 @@ async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
     
     let mut buffer = [0u8; BUFFER_SIZE];
     // read(fd2, &mut buffer);
-    let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
-    ac_r.await;
+    let buffer_ptr = buffer.as_ptr() as usize;
+    async_read(ASYNC_SYSCALL_READ, fd2, buffer_ptr, buffer.len(), key2, current_cid()).await;
+    // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
+    // ac_r.await;
     // print!("------------------buffer: ");
     for c in buffer {
         if c != 0 {

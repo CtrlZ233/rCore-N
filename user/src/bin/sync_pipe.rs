@@ -65,8 +65,10 @@ async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
     async_write(fd1, req.as_bytes().as_ptr() as usize, req.len(), key1);
 
     let buffer = [0u8; BUFFER_SIZE];
-    let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
-    ac_r.await;
+    let buffer_ptr = buffer.as_ptr() as usize;
+    async_read(ASYNC_SYSCALL_READ, fd2, buffer_ptr, buffer.len(), key2, current_cid()).await;
+    // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
+    // ac_r.await;
     // print!("------------------buffer: ");
     for c in buffer {
         if c != 0 {

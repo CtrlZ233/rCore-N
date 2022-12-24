@@ -6,16 +6,13 @@
 #[macro_use]
 pub mod console;
 mod lang_items;
-// mod syscall;
 pub mod trace;
 pub mod trap;
 pub mod user_uart;
-mod syscall6;
 
 extern crate alloc;
 
 pub use syscall::*;
-pub use syscall6::*;
 mod heap;
 use core::{future::Future, pin::Pin};
 use alloc::boxed::Box;
@@ -94,54 +91,42 @@ fn user_interrupt_handler() {
     }
 }
 
-/******************** 异步系统调用 *********************************/
-pub fn async_write(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize) -> isize {
-    async_sys_write(fd, buffer_ptr, buffer_len, key)
-}
-pub fn async_read(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize, cid: usize) -> isize {
-    async_sys_read(fd, buffer_ptr, buffer_len, key, cid)
-}
 
 
-// 异步系统调用
-pub struct AsyncCall {
-    call_type: usize,   // 系统调用类型，读 / 写
-    fd: usize,          // 文件描述符
-    buffer_ptr: usize,  // 缓冲区指针
-    buffer_len: usize,  // 缓冲区长度
-    key: usize,         // 类似于钥匙，读写的协程所拥有的钥匙必须要相同，这样才能够建立正确的对应关系，体现了协作
-    cnt: usize,         
-}
 
-impl AsyncCall {
-    pub fn new( call_type: usize, fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize) -> Self {
-        Self { 
-            call_type, fd, buffer_ptr, buffer_len, key, cnt: 0
-        }
-    }
-}
+// // 异步系统调用
+// pub struct AsyncCall {
+//     call_type: usize,   // 系统调用类型，读 / 写
+//     fd: usize,          // 文件描述符
+//     buffer_ptr: usize,  // 缓冲区指针
+//     buffer_len: usize,  // 缓冲区长度
+//     key: usize,         // 类似于钥匙，读写的协程所拥有的钥匙必须要相同，这样才能够建立正确的对应关系，体现了协作
+//     cnt: usize,         
+// }
 
-impl Future for AsyncCall {
-    type Output = ();
+// impl AsyncCall {
+//     pub fn new( call_type: usize, fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize) -> Self {
+//         Self { 
+//             call_type, fd, buffer_ptr, buffer_len, key, cnt: 0
+//         }
+//     }
+// }
 
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // submit async task to kernel and return immediately
-        if self.cnt == 0 {
-            match self.call_type {
-                ASYNC_SYSCALL_READ => async_sys_read(self.fd, self.buffer_ptr, self.buffer_len, self.key, current_cid()),
-                ASYNC_SYSCALL_WRITE => async_sys_write(self.fd, self.buffer_ptr, self.buffer_len, self.key),
-                _ => {0},
-            };
-            self.cnt += 1;
-            return Poll::Pending;
-        }
-        return Poll::Ready(());
-        // if is_waked(current_cid()) {
-        //     println!("current coroutine is done {}", current_cid());
-        //     return Poll::Ready(());
-        // } else {
-        //     return Poll::Pending;
-        // }
+// impl Future for AsyncCall {
+//     type Output = ();
+
+//     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+//         // submit async task to kernel and return immediately
+//         if self.cnt == 0 {
+//             match self.call_type {
+//                 ASYNC_SYSCALL_READ => async_sys_read(self.fd, self.buffer_ptr, self.buffer_len, self.key, current_cid()),
+//                 ASYNC_SYSCALL_WRITE => async_sys_write(self.fd, self.buffer_ptr, self.buffer_len, self.key),
+//                 _ => {0},
+//             };
+//             self.cnt += 1;
+//             return Poll::Pending;
+//         }
+//         return Poll::Ready(());
     
-    }
-}
+//     }
+// }
