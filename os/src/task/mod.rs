@@ -139,7 +139,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
 lazy_static! {
     pub static ref INITPROC: Arc<ProcessControlBlock> =
-        ProcessControlBlock::new(get_app_data_by_name("test_condvar").unwrap());
+        ProcessControlBlock::new(get_app_data_by_name("async_pipe").unwrap());
 }
 
 pub fn add_initproc() {
