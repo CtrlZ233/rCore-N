@@ -1,4 +1,3 @@
-// use crate::syscall_asm::*;
 use crate::syscall::*;
 const SYSCALL_DUP: usize = 24;
 const SYSCALL_OPEN: usize = 56;
@@ -295,6 +294,9 @@ pub fn condvar_signal(condvar_id: usize) {
 pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
     sys_condvar_wait(condvar_id, mutex_id);
 }
+
+pub const ASYNC_SYSCALL_READ: usize = 2501;
+pub const ASYNC_SYSCALL_WRITE: usize = 2502;
 
 pub fn async_write(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize) -> isize {
     unsafe {

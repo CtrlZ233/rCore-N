@@ -86,6 +86,13 @@ impl UnifiScheFunc {
             current_cid_fn(is_kernel)
         }
     }
+
+    fn reprio(&self, cid: usize, prio: usize) {
+        unsafe {
+            let reprio_fn: fn(usize, usize) = core::mem::transmute(*(self.0 as *mut usize).add(REPRIO));
+            reprio_fn(cid, prio);
+        }
+    }
 }
 
 static UNIFI_SCHE: Once<UnifiScheFunc> = Once::new();
@@ -117,4 +124,8 @@ pub fn re_back(cid: usize, pid: usize) {
 /// 获取当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid(is_kernel: bool) -> usize {
     UNIFI_SCHE.get().unwrap().current_cid(is_kernel)
+}
+/// 更新协程优先级
+pub fn reprio(cid: usize, prio: usize) {
+    UNIFI_SCHE.get().unwrap().reprio(cid, prio);
 }

@@ -11,12 +11,10 @@ pub mod trap;
 pub mod user_uart;
 
 extern crate alloc;
-
 pub use syscall::*;
 mod heap;
 use core::{future::Future, pin::Pin};
 use alloc::boxed::Box;
-use core::task::{Context, Poll};
 use riscv::register::mtvec::TrapMode;
 use riscv::register::{uie, utvec};
 

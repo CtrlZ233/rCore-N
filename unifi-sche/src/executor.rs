@@ -1,6 +1,6 @@
 
 use unifi_exposure::{Executor, CoroutineId};
-use crate::config::UNFI_SCHE_BUFFER;
+use crate::{config::UNFI_SCHE_BUFFER, prio_array::max_prio_pid};
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
@@ -10,6 +10,8 @@ use syscall::*;
 use core::task::Poll;
 use crate::MAX_THREAD_NUM;
 use buddy_system_allocator::LockedHeap;
+
+
 
 /// 添加协程，内核和用户态都可以调用
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) {
@@ -52,6 +54,11 @@ pub fn poll_user_future() {
                     // 任务队列不为空，但就绪队列为空，等待任务唤醒
                     yield_();
                 }
+            }
+            // 执行完优先级最高的协程，检查优先级，判断是否让权
+            let max_prio_pid = max_prio_pid();
+            if pid + 1 != max_prio_pid {
+                yield_();
             }
         }
         if tid != 0 {
@@ -112,5 +119,14 @@ pub fn re_back(cid: usize, pid: usize) {
         if prio < process_prio {
             PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
         }
+    }
+}
+
+/// 更新协程优先级
+pub fn reprio(cid: usize, prio: usize) {
+    unsafe {
+        let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        (*exe).reprio(CoroutineId(cid), prio);
     }
 }

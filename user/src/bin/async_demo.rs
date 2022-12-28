@@ -33,7 +33,7 @@ async fn server_read(fd: usize, key: usize) {
     println!("server read start, cid: {}", current_cid());
     let mut buffer = [0u8; BUFFER_SIZE];
     let buffer_ptr = buffer.as_ptr() as usize;
-    async_read(ASYNC_SYSCALL_READ, fd, buffer_ptr, buffer.len(), key, current_cid()).await;
+    read!(ASYNC_SYSCALL_READ, fd, buffer_ptr, buffer.len(), key, current_cid());
     // let read_corotine = AsyncCall::new(ASYNC_SYSCALL_READ, fd, buffer.as_ptr() as usize, buffer.len(), key);
     // read_corotine.await;
     // read(fd, &mut buffer);

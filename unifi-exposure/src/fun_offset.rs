@@ -6,3 +6,4 @@ pub const ADD_COROUTINE: usize      = 2;
 pub const POLL_KERNEL_FUTURE: usize = 3;
 pub const RE_BACK: usize            = 4;
 pub const CURRENT_CID: usize        = 5;
+pub const REPRIO: usize             = 6;

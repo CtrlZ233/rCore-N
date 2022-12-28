@@ -13,10 +13,12 @@ extern crate bitflags;
 // mod syscall_asm;
 #[macro_use]
 mod syscall;
+pub use syscall::*;
+pub const SYSCALL_READ: usize = 63;
+
 
 #[cfg(feature = "user")]
 mod user;
 
 #[cfg(feature = "user")]
 pub use user::*;
-pub use syscall::{async_read, ASYNC_SYSCALL_READ, ASYNC_SYSCALL_WRITE};
