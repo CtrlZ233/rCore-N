@@ -58,7 +58,11 @@ pub struct Coroutine{
     /// 协程编号
     pub cid: CoroutineId,
     /// future
-    pub future: Mutex<Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>>, 
+    pub inner: Mutex<CoroutineInner>,
+}
+
+pub struct CoroutineInner {
+    pub future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, 
     /// 当前协程的优先级
     pub prio: usize,
     /// waker
@@ -67,21 +71,25 @@ pub struct Coroutine{
 
 impl Coroutine {
     /// 生成协程
-    pub fn new(future: Mutex<Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>>, prio: usize) -> Arc<Self> {
+    pub fn new(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize) -> Arc<Self> {
         let cid = CoroutineId::generate();
         Arc::new(
             Coroutine {
                 cid,
-                future,
-                prio,
-                waker: Arc::new(CoroutineWaker::new(cid)),
+                inner: Mutex::new(CoroutineInner {
+                    future,
+                    prio,
+                    waker: Arc::new(CoroutineWaker::new(cid)),
+                })
+                
             }
         )
     }
     /// 执行
     pub fn execute(self: Arc<Self>) -> Poll<()> {
-        let waker = self.waker.clone();
+        let mut inner = self.inner.lock();
+        let waker = inner.waker.clone();
         let mut context = Context::from_waker(&*waker);
-        self.future.lock().as_mut().poll(&mut context)
+        inner.future.as_mut().poll(&mut context)
     }
 }

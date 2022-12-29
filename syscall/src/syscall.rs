@@ -47,54 +47,60 @@ syscall! {
     syscall6(a, b, c, d, e, f, g);
 }
 
-macro_rules! asyscall {
-    ($($name:ident($a:ident, $($b:ident, $($c:ident, $($d:ident, $($e:ident, $($f:ident, $($g:ident)?)?)?)?)?)?);)+) => {
+
+macro_rules! generate_syscall {
+    ($($name:ident($id:ident);)+) => {
         $(
-            pub async fn $name($a: usize, $($b: usize, $($c: usize, $($d: usize, $($e: usize, $($f: usize, $($g: usize)?)?)?)?)?)?) {
-                let ret: isize;
-                unsafe {
-                    core::arch::asm!(
-                        "ecall",
-                        in("a7") $a,
-                        $(
-                            in("a0") $b,
-                            $(
-                                in("a1") $c,
-                                $(
-                                    in("a2") $d,
-                                    $(
-                                        in("a3") $e,
-                                        $(
-                                            in("a4") $f,
-                                            $(
-                                                in("a5") $g,
-                                            )?
-                                        )?
-                                    )?
-                                )?
-                            )?
-                        )?
-                        lateout("a0") ret,
-                        options(nostack),
-                    );
+            #[macro_export]
+            macro_rules! $name {
+                ($a:expr, $b:expr) => {
+                    unsafe {
+                        $crate::syscall3($crate::SYSCALL_READ, $a, $b.as_mut_ptr() as usize, $b.len());
+                    }
+                };
+                // 异步
+                ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr) => {
+                    unsafe {
+                        $crate::syscall5($a, $b, $c, $d, $e, $f);
+                        let async_call = $crate::AsyncCall::new();
+                        async_call.await;
+                    }
                 }
-                let async_call = AsyncCall::new();
-                async_call.await;
             }
         )+
     };
 }
 
-/// 这里定义的函数是暴露出来给 user_app 使用，因为 async fn 和 普通的 fn 不能同名，因此还需要思考一下其他方法
-asyscall! {
-    async_read(call_type, fd, buffer_ptr, buffer_len, key, cid,);
+generate_syscall!{
+    read(SYSCALL_READ);
 }
 
-pub const ASYNC_SYSCALL_READ: usize = 2501;
-pub const ASYNC_SYSCALL_WRITE: usize = 2502;
 
 
-// 异步系统调用, 顶层 future
+
+
+// // 直接用宏实现系统调用，同步和异步的区别在于参数的不同
+// #[macro_export]
+// macro_rules! read {
+//     // 同步系统调用
+//     ($a:expr, $b:expr) => {
+//         unsafe {
+//             $crate::syscall3($crate::SYSCALL_READ, $a, $b.as_mut_ptr() as usize, $b.len());
+//         }
+//     };
+//     // 异步
+//     ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr) => {
+//         unsafe {
+//             $crate::syscall5($a, $b, $c, $d, $e, $f);
+//             let async_call = $crate::AsyncCall::new();
+//             async_call.await;
+//         }
+//     }
+// }
+
+
+
+// 异步系统调用辅助 future
 pub struct AsyncCall {
     blocked: bool,         
 }

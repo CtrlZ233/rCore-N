@@ -43,9 +43,27 @@ impl Executor {
 }
 
 impl Executor {
+    /// 更新协程优先级
+    pub fn reprio(&mut self, cid: CoroutineId, prio: usize) {
+        let _lock = self.wr_lock.lock();
+        let task = self.tasks.get(&cid).unwrap();
+        // task.inner.lock().prio = prio;
+        let p = task.inner.lock().prio;
+        // 先从队列中出来
+        if let Ok(idx) = self.ready_queue[p].binary_search(&cid){
+            self.ready_queue[p].remove(idx);
+            if self.ready_queue[p].is_empty() {
+                self.bitmap.update(p, false);
+            }
+        }
+        task.inner.lock().prio = prio;
+        self.ready_queue[prio].push_back(cid);
+        self.bitmap.update(prio, true);
+        self.priority = self.bitmap.get_priority();
+    }
     /// 添加协程
     pub fn add_coroutine(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-        let task = Coroutine::new(Mutex::new(future), prio);
+        let task = Coroutine::new(future, prio);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
         self.ready_queue[prio].push_back(cid);
@@ -83,7 +101,7 @@ impl Executor {
     /// 阻塞协程重新入队
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
         let _lock = self.wr_lock.lock();
-        let prio = self.tasks.get(&cid).unwrap().prio;
+        let prio = self.tasks.get(&cid).unwrap().inner.lock().prio;
         self.ready_queue[prio].push_back(cid);
         self.bitmap.update(prio, true);
         if prio < self.priority {
