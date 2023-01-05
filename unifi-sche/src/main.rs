@@ -74,7 +74,7 @@ fn user_entry() {
     // thread.execute();
     let mut wait_tid = vec![];
     // let max_len = MAX_THREAD_NUM - 2;
-    let max_len = 0;
+    let max_len = 3;
     let pid = getpid();
     if pid == 0 {
         for _ in 0..max_len {

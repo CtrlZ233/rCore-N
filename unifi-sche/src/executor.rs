@@ -43,6 +43,7 @@ pub fn poll_user_future() {
             match task {
                 Some(task) => {
                     let cid = task.cid;
+                    // println!("prio: {}", task.inner.lock().prio);
                     match task.execute() {
                         Poll::Pending => { }
                         Poll::Ready(()) => {

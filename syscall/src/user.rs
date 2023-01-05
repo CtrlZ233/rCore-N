@@ -21,6 +21,7 @@ const SYSCALL_SEND_MSG: usize = 601;
 const SYSCALL_SET_TIMER: usize = 602;
 const SYSCALL_CLAIM_EXT_INT: usize = 603;
 const SYSCALL_SET_EXT_INT_ENABLE: usize = 604;
+const SYSCALL_SET_CID_TIMER: usize = 605;
 
 const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_GETTID: usize = 1001;
@@ -186,6 +187,10 @@ pub fn claim_ext_int(device_id: usize) -> isize {
 
 pub fn set_ext_int_enable(device_id: usize, enable: usize) -> isize {
     unsafe { syscall2(SYSCALL_SET_EXT_INT_ENABLE, device_id, enable) }
+}
+
+pub fn set_cid_timer(time_us: isize, cid: usize) -> isize {
+    unsafe { syscall2(SYSCALL_SET_CID_TIMER, time_us as usize, cid) }
 }
 
 pub fn thread_create(entry: usize, arg: usize) -> isize {

@@ -17,6 +17,11 @@ pub struct TimeVal {
     pub usec: usize,
 }
 
+pub struct TaskID {
+    pub pid: usize,
+    pub coroutine_id: Option<usize>,
+}
+
 #[allow(dead_code)]
 impl TimeVal {
     pub fn new() -> Self {
@@ -55,23 +60,35 @@ pub fn get_time_us() -> usize {
 
 pub fn set_next_trigger() {
     // set_timer(time::read() + CLOCK_FREQ / TICKS_PER_SEC);
-    set_virtual_timer(time::read() + CLOCK_FREQ / TICKS_PER_SEC, 0);
+    set_virtual_timer(time::read() + CLOCK_FREQ / TICKS_PER_SEC, 0, -1);
 }
 
 lazy_static! {
-    pub static ref TIMER_MAP: [Arc<Mutex<BTreeMap<usize, usize>>>; CPU_NUM] = Default::default();
+    pub static ref TIMER_MAP: [Arc<Mutex<BTreeMap<usize, TaskID>>>; CPU_NUM] = Default::default();
 }
 
-pub fn set_virtual_timer(mut time: usize, pid: usize) {
+pub fn set_virtual_timer(mut time: usize, pid: usize, cid: isize) {
     if time < time::read() {
         warn!("Time travel!");
         // return;
     }
+
+    let coroutine_id = if cid < 0 {
+        None
+    } else {
+        Some(cid as usize)
+    };
+    
+    let task_id = TaskID {
+        pid: pid,
+        coroutine_id
+    };
+
     let mut timer_map = TIMER_MAP[hart_id()].lock();
     while timer_map.contains_key(&time) {
         time += 1;
     }
-    timer_map.insert(time, pid);
+    timer_map.insert(time, task_id);
     if let Some((timer_min, _)) = timer_map.first_key_value() {
         if time == *timer_min {
             set_timer(time);

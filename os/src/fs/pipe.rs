@@ -2,6 +2,7 @@ use super::File;
 use crate::mm::UserBuffer;
 use crate::task::suspend_current_and_run_next;
 use alloc::sync::{Arc, Weak};
+use riscv::register::hpmcounter12::read;
 use spin::Mutex;
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
@@ -45,6 +46,7 @@ pub struct PipeRingBuffer {
     tail: usize,
     status: RingBufferStatus,
     write_end: Option<Weak<Pipe>>,
+    read_end: Option<Weak<Pipe>>,
 }
 
 impl PipeRingBuffer {
@@ -55,11 +57,17 @@ impl PipeRingBuffer {
             tail: 0,
             status: RingBufferStatus::EMPTY,
             write_end: None,
+            read_end: None,
         }
     }
     pub fn set_write_end(&mut self, write_end: &Arc<Pipe>) {
         self.write_end = Some(Arc::downgrade(write_end));
     }
+
+    pub fn set_read_end(&mut self, read_end: &Arc<Pipe>) {
+        self.read_end = Some(Arc::downgrade(read_end))
+    }
+
     pub fn write_byte(&mut self, byte: u8) {
         self.status = RingBufferStatus::NORMAL;
         self.arr[self.tail] = byte;
@@ -96,6 +104,10 @@ impl PipeRingBuffer {
     pub fn all_write_ends_closed(&self) -> bool {
         self.write_end.as_ref().unwrap().upgrade().is_none()
     }
+
+    pub fn all_read_ends_closed(&self) -> bool {
+        self.read_end.as_ref().unwrap().upgrade().is_none()
+    }
 }
 
 /// Return (read_end, write_end)
@@ -104,6 +116,7 @@ pub fn make_pipe() -> (Arc<Pipe>, Arc<Pipe>) {
     let read_end = Arc::new(Pipe::read_end_with_buffer(buffer.clone()));
     let write_end = Arc::new(Pipe::write_end_with_buffer(buffer.clone()));
     buffer.lock().set_write_end(&write_end);
+    buffer.lock().set_read_end(&read_end);
     (read_end, write_end)
 }
 
@@ -145,6 +158,9 @@ impl File for Pipe {
             let mut ring_buffer = self.buffer.lock();
             let loop_write = ring_buffer.available_write();
             if loop_write == 0 {
+                if ring_buffer.all_read_ends_closed() {
+                    return Ok(write_size);
+                }
                 debug!("iter ++");
                 drop(ring_buffer);
                 suspend_current_and_run_next();
@@ -191,6 +207,9 @@ impl File for Pipe {
                     break;
                     //return read_size;
                 }
+            }
+            if buf_iter.next().is_none() {
+                break;
             }
         }
         // 将读协程加入到回调队列中，使得用户态的协程执行器能够唤醒读协程

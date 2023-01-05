@@ -23,7 +23,7 @@ lazy_static! {
 // 向文件中写完之后，应该唤醒对应的 read 协程
 pub fn async_sys_write(fd: usize, buf: *const u8, len: usize, key: usize) -> isize {
     sys_write(fd, buf, len);
-    sys_close(fd);
+    // sys_close(fd);
     let async_key = AsyncKey {
         pid: current_process().unwrap().pid.0,
         key

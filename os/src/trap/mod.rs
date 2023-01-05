@@ -103,28 +103,42 @@ pub fn trap_handler() -> ! {
             // let current_time = time::read();
             let mut timer_map = TIMER_MAP[hart_id()].lock();
             // debug!("test");
-            while let Some((_, pid)) = timer_map.pop_first() {
+            while let Some((_, task_id)) = timer_map.pop_first() {
                 if let Some((next_time, _)) = timer_map.first_key_value() {
                     set_timer(*next_time);
                 }
                 drop(timer_map);
-                if pid == 0 {
+                if task_id.pid == 0 {
                     set_next_trigger();
                     suspend_current_and_run_next();
-                } else if pid == current_task().unwrap().getpid() &&
-                          sys_gettid() as usize == current_process().unwrap().get_user_trap_handler_tid() {
-                    debug!("set UTIP for pid {}", pid);
-                    unsafe {
-                        sip::set_utimer();
-                    }
                 } else {
-                    let _ = push_trap_record(
-                        pid,
-                        UserTrapRecord {
-                            cause: 4,
-                            message: get_time_us(),
-                        },
-                    );
+                    debug!("timer interrupt");
+                    if task_id.coroutine_id.is_none() {
+                        if task_id.pid - 1 == current_task().unwrap().getpid() &&
+                        sys_gettid() as usize == current_process().unwrap().get_user_trap_handler_tid() {
+                            debug!("set UTIP for pid {}", task_id.pid - 1);
+                            unsafe {
+                                sip::set_utimer();
+                            }
+                        } else {
+                            let _ = push_trap_record(
+                                task_id.pid - 1,
+                                UserTrapRecord {
+                                    cause: 4,
+                                    message: get_time_us(),
+                                },
+                            );
+                        }
+                    } else {
+                        debug!("timer cid wake: {}", task_id.coroutine_id.unwrap());
+                        let _ = push_trap_record(
+                            task_id.pid - 1, 
+                            UserTrapRecord {
+                                cause: 1,
+                                message: task_id.coroutine_id.unwrap(),
+                            }
+                        );
+                    }
                 }
                 break;
             }
