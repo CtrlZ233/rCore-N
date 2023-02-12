@@ -49,9 +49,11 @@ pub fn sys_hang() -> isize {
     if process_inner.user_trap_info.is_some() && process_inner.user_trap_info.as_ref().unwrap().get_trap_queue().is_empty() {
         process_inner.user_trap_handler_task = Some(task);
         drop(process_inner);
+        drop(process);
         block_current_and_run_next();
     } else {
         drop(process_inner);
+        drop(process);
         suspend_current_and_run_next();
     }
     0

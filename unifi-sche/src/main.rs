@@ -2,7 +2,6 @@
 
 #![no_std]
 #![no_main]
-#![feature(default_alloc_error_handler)]
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(allocator_api)]
@@ -76,7 +75,7 @@ fn user_entry() {
     // let max_len = MAX_THREAD_NUM - 2;
     let max_len = 0;
     let pid = getpid();
-    if pid == 0 {
+    if pid != 0 {
         for _ in 0..max_len {
             wait_tid.push(thread_create(poll_user_future as usize, 0));
         }

@@ -71,6 +71,7 @@ pub fn sys_condvar_signal(condvar_id: usize) -> isize {
     let process_inner = process.acquire_inner_lock();
     let condvar = Arc::clone(process_inner.condvar_list[condvar_id].as_ref().unwrap());
     drop(process_inner);
+    drop(process);
     condvar.signal();
     0
 }
@@ -81,6 +82,7 @@ pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
     let condvar = Arc::clone(process_inner.condvar_list[condvar_id].as_ref().unwrap());
     let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
     drop(process_inner);
+    drop(process);
     condvar.wait_with_mutex(mutex);
     0
 }
