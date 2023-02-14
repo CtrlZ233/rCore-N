@@ -22,19 +22,23 @@ lazy_static! {
 // tid 表示当前用户进程执行的写协程， rtid 表示对应的读协程
 // 向文件中写完之后，应该唤醒对应的 read 协程
 pub fn async_sys_write(fd: usize, buf: *const u8, len: usize, key: usize) -> isize {
-    sys_write(fd, buf, len);
+    debug!("async sysc");
+    let write_size = sys_write(fd, buf, len, true);
     // sys_close(fd);
     let async_key = AsyncKey {
         pid: current_process().unwrap().pid.0,
         key
     };
-    // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
-    if let Some(kernel_cid) = WRMAP.lock().remove(&async_key) {
-        debug!("kernel_cid {}", kernel_cid);
-        unifi_exposure::re_back(kernel_cid, 0);
+    if write_size == len as isize {
+        // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
+        if let Some(kernel_cid) = WRMAP.lock().remove(&async_key) {
+            debug!("kernel_cid {}", kernel_cid);
+            unifi_exposure::re_back(kernel_cid, 0);
+        }
+        debug!("async_sys_write done");
     }
-    // error!("async_sys_write done");
-    0
+    
+    write_size
 }
 
 pub fn async_sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -> isize {

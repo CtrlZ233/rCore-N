@@ -28,7 +28,7 @@ impl<const N: usize> File for Serial<N> {
             Err(-1)
         }
     }
-    fn write(&self, user_buf: UserBuffer) -> Result<usize, isize> {
+    fn write(&self, user_buf: UserBuffer, is_nonblock: bool) -> Result<usize, isize> {
         let mut write_cnt = 0;
         let mut write_ok = true;
         for buffer in user_buf.buffers.iter() {

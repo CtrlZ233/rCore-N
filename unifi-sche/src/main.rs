@@ -2,7 +2,7 @@
 
 #![no_std]
 #![no_main]
-#![feature(default_alloc_error_handler)]
+// #![feature(default_alloc_error_handler)]
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(allocator_api)]
@@ -74,7 +74,7 @@ fn user_entry() {
     // thread.execute();
     let mut wait_tid = vec![];
     // let max_len = MAX_THREAD_NUM - 2;
-    let max_len = 0;
+    let max_len = 1;
     let pid = getpid();
     if pid == 0 {
         for _ in 0..max_len {

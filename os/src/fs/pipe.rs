@@ -149,8 +149,11 @@ impl File for Pipe {
             }
         }
     }
-    fn write(&self, buf: UserBuffer) -> Result<usize, isize> {
+
+
+    fn write(&self, buf: UserBuffer, is_nonblock: bool) -> Result<usize, isize> {
         assert!(self.writable);
+        debug!("write start");
         let mut buf_iter = buf.into_iter();
         let mut write_size = 0usize;
         loop {
@@ -162,6 +165,9 @@ impl File for Pipe {
                     return Ok(write_size);
                 }
                 debug!("iter ++");
+                if is_nonblock {
+                    return Ok(write_size);
+                }
                 drop(ring_buffer);
                 suspend_current_and_run_next();
                 continue;

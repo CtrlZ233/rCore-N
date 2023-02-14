@@ -7,7 +7,7 @@ use crate::{
     // task::find_task,
 };
 
-pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+pub fn sys_write(fd: usize, buf: *const u8, len: usize, is_nonblock: bool) -> isize {
     if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
         // debug!("sys_write {} {}", fd, len);
     }
@@ -23,7 +23,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         // release Task lock manually to avoid deadlock
         drop(inner);
         if let Ok(buffers) = translated_byte_buffer(token, buf, len) {
-            match file.write(UserBuffer::new(buffers)) {
+            match file.write(UserBuffer::new(buffers), is_nonblock) {
                 Ok(write_len) => write_len as isize,
                 Err(_) => -2,
             }

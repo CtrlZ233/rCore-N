@@ -93,7 +93,7 @@ impl File for MailBox {
         }
     }
 
-    fn write(&self, _buf: UserBuffer) -> Result<usize, isize> {
+    fn write(&self, _buf: UserBuffer, is_nonblock: bool) -> Result<usize, isize> {
         Err(-1)
     }
     fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
@@ -120,7 +120,7 @@ impl File for Socket {
         Err(-1)
     }
 
-    fn write(&self, buf: UserBuffer) -> Result<usize, isize> {
+    fn write(&self, buf: UserBuffer, is_nonblock: bool) -> Result<usize, isize> {
         debug!("socket try to write");
         assert!(self.writable);
         let mut buf_iter = buf.into_iter();
