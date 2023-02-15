@@ -5,9 +5,11 @@
       <sourceFolder url="file://$MODULE_DIR$/os/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/unfi-exposure/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/user/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/unifi-sche/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/os/target" />
       <excludeFolder url="file://$MODULE_DIR$/unfi-exposure/target" />
       <excludeFolder url="file://$MODULE_DIR$/user/target" />
+      <excludeFolder url="file://$MODULE_DIR$/unifi-sche/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
