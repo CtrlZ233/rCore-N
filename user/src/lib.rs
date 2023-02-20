@@ -2,13 +2,13 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
-
 #[macro_use]
 pub mod console;
 mod lang_items;
 pub mod trace;
 pub mod trap;
 pub mod user_uart;
+pub mod matrix;
 
 extern crate alloc;
 pub use syscall::*;

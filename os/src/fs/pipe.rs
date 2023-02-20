@@ -129,6 +129,7 @@ impl File for Pipe {
             let mut ring_buffer = self.buffer.lock();
             let loop_read = ring_buffer.available_read();
             if loop_read == 0 {
+                // debug!("read iter++");
                 if ring_buffer.all_write_ends_closed() {
                     return Ok(read_size);
                 }
@@ -162,6 +163,7 @@ impl File for Pipe {
             let loop_write = ring_buffer.available_write();
             if loop_write == 0 {
                 if ring_buffer.all_read_ends_closed() {
+                    debug!("pipe readFD closed");
                     return Ok(write_size);
                 }
                 debug!("iter ++");
