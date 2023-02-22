@@ -65,7 +65,7 @@ impl Executor {
         self.priority = self.bitmap.get_priority();
     }
     /// 添加协程
-    pub fn add_coroutine(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
+    pub fn add_coroutine(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize) -> usize {
         let task = Coroutine::new(future, prio);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
@@ -76,6 +76,7 @@ impl Executor {
             self.priority = prio;
         }
         drop(lock);
+        cid.0
     }
     /// 判断是否还有协程
     pub fn is_empty(&self) -> bool {

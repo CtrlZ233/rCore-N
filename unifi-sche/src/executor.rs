@@ -14,14 +14,15 @@ use buddy_system_allocator::LockedHeap;
 
 
 /// 添加协程，内核和用户态都可以调用
-pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) {
+pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) -> usize {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        (*exe).add_coroutine(future, prio);
+        let cid = (*exe).add_coroutine(future, prio);
         // 更新优先级标记
         let prio = (*exe).priority;
         update_prio(pid, prio);
+        cid
     }
 }
 /// 用户程序执行协程

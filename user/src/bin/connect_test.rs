@@ -37,11 +37,14 @@ static MSG_COUNT: Mutex<usize> = Mutex::new(0);
 
 const MAX_CONNECTION: usize = 256;
 
-static mut CONNECTIONS: Vec<[usize; 2]> = Vec::new();
+static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
 
 const MAX_SERVER_THREAD: usize = 4;
 const SERVER_POLL_THREDS: usize = 7 - 1;
 const CLIENT_POLL_THREDS: usize = 3 - 1;
+
+static RECEIVE_BUFFER: Vec<Mutex<usize>> = Vec::new();
+static SERVER_BUFFER: Vec<Mutex<usize>> = Vec::new();
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -56,10 +59,12 @@ pub fn main() -> i32 {
     println!("main tid: {}", gettid());
 
     for i in 0..MAX_CONNECTION {
-        let mut fds = [0usize; 2];
-        pipe(&mut fds);
+        let mut fds0 = [0usize; 2];
+        let mut fds1 = [0usize; 2];
+        pipe(&mut fds0);
+        pipe(&mut fds1);
         unsafe {
-            CONNECTIONS.push([fds[0], fds[1]]);
+            CONNECTIONS.push([fds0[0], fds0[1], fds1[0], fds1[1]]);
         }
     }
 
@@ -78,12 +83,20 @@ pub fn main() -> i32 {
 
         unsafe {
             for i in 0..MAX_CONNECTION {
-                add_coroutine(Box::pin(client(CONNECTIONS[i][1], i, pid as usize)), 1)
+                add_coroutine(Box::pin(client_send(CONNECTIONS[i][1], i, pid as usize)), 1);
+                add_coroutine(Box::pin(client_recv(CONNECTIONS[i][2], i + MAX_CONNECTION)), 1);
             }
         }
 
     } else {
         // 服务端进程
+        for i in 0..MAX_CONNECTION {
+            unsafe {
+                RECEIVE_BUFFER.push(Mutex::new(0));
+                SERVER_BUFFER.push(Mutex::new(0));
+            }
+        }
+
         let init_res = init_user_trap();
         println!(
             "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
@@ -96,6 +109,8 @@ pub fn main() -> i32 {
 
         unsafe {
             for i in 0..MAX_CONNECTION {
+                let send_cid = add_coroutine(Box::pin(msg_sender(CONNECTIONS[i][3], i + MAX_CONNECTION, pid)), 1);
+                // let server_cid = add_coroutine(future, prio)
                 add_coroutine(Box::pin(msg_receiver(CONNECTIONS[i][0], i)), 1);
             }
         }
@@ -117,34 +132,60 @@ pub fn main() -> i32 {
     0
 }
 
-fn server() {
-    let mut throughput = 0;
-    let len = DATA_S.len();
+// fn server() {
+//     let mut throughput = 0;
+//     let len = DATA_S.len();
 
+//     unsafe {
+//         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
+//             {
+//                 let mut count = MSG_COUNT.lock();
+//                 if count.eq(&0) {
+//                     continue;
+//                 }
+//                 *count = count.sub(1);
+//             }
+//             matrix::matrix_mul_test(MATRIX_SIZE);
+            
+//             throughput += 1;
+//             // println!("tid: {}, throughtput: {}", tid, throughput);
+//         }
+//     }
+    
+//     {
+//         let mut res = RES_LOCK.lock();
+//         *res = res.add(throughput);
+//         println!("total throughput: {} Kbytes, count: {}", res.mul(len).checked_div(1024).unwrap(), MSG_COUNT.lock());
+//     }
+
+//     exit(0);
+    
+// }
+
+async fn msg_server(key: usize, cid: usize) {
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
-            {
-                let mut count = MSG_COUNT.lock();
-                if count.eq(&0) {
-                    continue;
+            unsafe {
+                {
+                    let recv_count = RECEIVE_BUFFER[key].lock();
+                    if recv_count.eq(&0) {
+                        // await切换
+                        continue;
+                    }
+                    *recv_count = recv_count.sub(1);
                 }
-                *count = count.sub(1);
+                
+                matrix::matrix_mul_test(MATRIX_SIZE);
+
+                {
+                    let server_count = SERVER_BUFFER[key].lock();
+                    *server_count = server_count.add(1);
+                    re_back(cid);
+                }
+                
             }
-            matrix::matrix_mul_test(MATRIX_SIZE);
-            
-            throughput += 1;
-            // println!("tid: {}, throughtput: {}", tid, throughput);
         }
     }
-    
-    {
-        let mut res = RES_LOCK.lock();
-        *res = res.add(throughput);
-        println!("total throughput: {} Kbytes, count: {}", res.mul(len).checked_div(1024).unwrap(), MSG_COUNT.lock());
-    }
-
-    exit(0);
-    
 }
 
 async fn msg_receiver(server_fd: usize, key: usize) {
@@ -161,12 +202,19 @@ async fn msg_receiver(server_fd: usize, key: usize) {
         }
     }
     close(server_fd);
-    
+}
+
+async fn msg_sender(server_fd: usize, key: usize, pid: usize) {
+    let req = DATA_C;
+    unsafe {
+        while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
+            async_write(client_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+        }
+    }
 }
 
 
-
-async fn client(client_fd: usize, key: usize, pid: usize) {
+async fn client_send(client_fd: usize, key: usize, pid: usize) {
     // println!("client start");
     let req = DATA_C;
     unsafe {
@@ -177,6 +225,19 @@ async fn client(client_fd: usize, key: usize, pid: usize) {
             // let end = get_time();
             // println!("cost time: {}", end - start);
             async_write(client_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+        }
+    }
+    close(client_fd);
+}
+
+
+async fn client_recv(client_fd: usize, key: usize) {
+    // println!("client start");
+    let mut buffer = [0u8; DATA_C.len()];
+    let buffer_ptr = buffer.as_ptr() as usize;
+    unsafe {
+        while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
+            read!(ASYNC_SYSCALL_READ, server_fd, buffer_ptr, buffer.len(), key, current_cid());
         }
     }
     close(client_fd);
