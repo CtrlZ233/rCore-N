@@ -1,4 +1,4 @@
-const MAX_USER_TRAP_NUM: usize = 512;
+const MAX_USER_TRAP_NUM: usize = 128;
 
 use crate::config::CPU_NUM;
 use crate::plic::Plic;
