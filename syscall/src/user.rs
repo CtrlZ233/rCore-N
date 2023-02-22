@@ -303,8 +303,8 @@ pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
 pub const ASYNC_SYSCALL_READ: usize = 2501;
 pub const ASYNC_SYSCALL_WRITE: usize = 2502;
 
-pub fn async_write(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize) -> isize {
+pub fn async_write(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize, pid: usize) -> isize {
     unsafe {
-        syscall4(ASYNC_SYSCALL_WRITE, fd, buffer_ptr, buffer_len, key)
+        syscall5(ASYNC_SYSCALL_WRITE, fd, buffer_ptr, buffer_len, key, pid)
     }
 }

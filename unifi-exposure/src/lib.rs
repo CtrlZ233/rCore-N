@@ -93,6 +93,13 @@ impl UnifiScheFunc {
             reprio_fn(cid, prio);
         }
     }
+
+    fn add_virtual_core(&self) {
+        unsafe {
+            let add_virtual_core_fn: fn() = core::mem::transmute(*(self.0 as *mut usize).add(ADD_VIRTUAL_CORE));
+            add_virtual_core_fn();
+        }
+    }
 }
 
 static UNIFI_SCHE: Once<UnifiScheFunc> = Once::new();
@@ -128,4 +135,9 @@ pub fn current_cid(is_kernel: bool) -> usize {
 /// 更新协程优先级
 pub fn reprio(cid: usize, prio: usize) {
     UNIFI_SCHE.get().unwrap().reprio(cid, prio);
+}
+
+/// 获取Poll入口地址
+pub fn add_virtual_core() {
+    UNIFI_SCHE.get().unwrap().add_virtual_core();
 }

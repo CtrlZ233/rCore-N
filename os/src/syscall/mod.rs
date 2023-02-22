@@ -103,7 +103,7 @@ pub const ASYNC_SYSCALL_WRITE: usize = 2502;
 pub fn syscall6(syscall_id: usize, args: [usize; 6]) -> isize {
     match syscall_id {
         ASYNC_SYSCALL_READ => async_sys_read(args[0], args[1] as *const u8, args[2], args[3], args[4]),
-        ASYNC_SYSCALL_WRITE => async_sys_write(args[0], args[1] as *const u8, args[2], args[3]),
+        ASYNC_SYSCALL_WRITE => async_sys_write(args[0], args[1] as *const u8, args[2], args[3], args[4]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }

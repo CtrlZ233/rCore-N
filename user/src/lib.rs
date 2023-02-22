@@ -62,6 +62,10 @@ pub fn re_back(cid: usize) {
     unifi_exposure::re_back(cid, pid + 1);
 }
 
+pub fn add_virtual_core() {
+    unifi_exposure::add_virtual_core();
+}
+
 #[linkage = "weak"]
 #[no_mangle]
 fn main() -> i32 {

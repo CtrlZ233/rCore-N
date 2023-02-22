@@ -19,7 +19,6 @@ mod config;
 
 extern crate alloc;
 
-use alloc::vec;
 use executor::*;
 use prio_array::max_prio_pid;
 use syscall::*;
@@ -57,6 +56,7 @@ extern "C" fn _start() -> usize {
         INTERFACE[4] = re_back as usize;
         INTERFACE[5] = current_cid as usize;
         INTERFACE[6] = reprio as usize;
+        INTERFACE[7] = add_virtual_core as usize;
         &INTERFACE as *const [usize; 10] as usize
     }
 }
@@ -72,27 +72,20 @@ fn user_entry() {
     // 主线程，在这里创建执行协程的线程，之后再进行控制
     // let mut thread = Thread::new();
     // thread.execute();
-    let mut wait_tid = vec![];
-    // let max_len = MAX_THREAD_NUM - 2;
-    // let max_len = 4;
-    let max_len = 0;
-    let pid = getpid();
-    if pid == 0 {
-        for _ in 0..max_len {
-            wait_tid.push(thread_create(poll_user_future as usize, 0));
-        }
-    }
+
     let start = get_time();
 
     poll_user_future();
-    for tid in wait_tid.iter() {
-        waittid(*tid as usize);
-    }
+    
+    wait_other_cores();
+
+    
     let end = get_time();
     println!("total time: {} ms", end - start);
     
     exit(0);
 }
+
 
 
 

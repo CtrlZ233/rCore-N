@@ -123,6 +123,7 @@ pub fn make_pipe() -> (Arc<Pipe>, Arc<Pipe>) {
 impl File for Pipe {
     fn read(&self, buf: UserBuffer) -> Result<usize, isize> {
         assert!(self.readable);
+        debug!("read start");
         let mut buf_iter = buf.into_iter();
         let mut read_size = 0usize;
         loop {

@@ -4,7 +4,7 @@ use riscv::register::{ucause, uepc, uip, ustatus::Ustatus, utval};
 
 pub const PAGE_SIZE: usize = 0x1000;
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
-pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - 20 * PAGE_SIZE;
+pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - 4 * PAGE_SIZE;
 pub const UNFI_SCHE_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
 pub const TRAP_CONTEXT: usize = UNFI_SCHE_BUFFER - PAGE_SIZE;
 const MAX_USER_TRAP_NUM: usize = 512;
@@ -57,7 +57,6 @@ global_asm!(include_str!("trap.asm"));
 #[linkage = "weak"]
 #[no_mangle]
 pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
-    // println!("enter trap handler");
     let ucause = ucause::read();
     let utval = utval::read();
     push_trace(U_TRAP_HANDLER + ucause.bits());
@@ -66,13 +65,14 @@ pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
             // push_trace(TRAP_QUEUE_ENTER);
             let trap_queue = unsafe { &mut *(USER_TRAP_BUFFER as *mut UserTrapQueue) };
             // println!(
-            //     "[user trap] Received {} trap from kernel.",
-            //     trap_queue.len()
+            //     "[user trap] Received {} trap from kernel.{}",
+            //     trap_queue.len(), USER_TRAP_BUFFER
             // );
             unsafe {
                 uip::clear_usoft();
             }
             while let Some(trap_record) = trap_queue.dequeue() {
+                // println!("enter trap handler");
                 let cause = trap_record.cause;
                 let msg = trap_record.message;
                 if cause & 0xF == 0 {

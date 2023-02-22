@@ -89,9 +89,10 @@ pub fn sys_exec(path: *const u8) -> isize {
 /// Else if there is a child process but it is still running, return -2.
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     trace!("sys_waitpid {}", pid);
+    // error!("waitpid start");
     let process = current_process().unwrap();
     // find a child process
-    let _ = WAIT_LOCK.lock();
+    let _lock = WAIT_LOCK.lock();
     // ---- hold current PCB lock
     let mut inner = process.acquire_inner_lock();
     if inner
@@ -197,6 +198,7 @@ pub fn sys_set_timer(time_us: usize, cid: isize) -> isize {
     use crate::config::CLOCK_FREQ;
     use crate::timer::{set_virtual_timer, USEC_PER_SEC};
     let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
+    // error!("set timer:  pid: {}, cid: {}", pid + 1, cid);
     set_virtual_timer(time, pid + 1, cid);
     0
 }

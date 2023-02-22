@@ -87,7 +87,8 @@ impl ProcessControlBlockInner {
         use riscv::register::sstatus;
         if self.user_trap_info.is_none() {
             // R | W
-            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE * 20, 0b11).is_ok() {
+            info!("USER_TRAP_BUFFER: {}", USER_TRAP_BUFFER);
+            if self.mmap(USER_TRAP_BUFFER, 4 * PAGE_SIZE, 0b11).is_ok() {
                 let phys_addr =
                     translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
                 self.user_trap_info = Some(UserTrapInfo {

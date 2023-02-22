@@ -43,6 +43,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
 }
 
 pub fn sys_hang() -> isize {
+    // error!("hang....");
     let task = current_task().unwrap();
     let process = task.process.upgrade().unwrap();
     let mut process_inner = process.acquire_inner_lock();

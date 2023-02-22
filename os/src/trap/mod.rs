@@ -130,7 +130,7 @@ pub fn trap_handler() -> ! {
                             );
                         }
                     } else {
-                        debug!("timer cid wake: {}", task_id.coroutine_id.unwrap());
+                        // error!("pid: {}, timer cid wake: {}",task_id.pid - 1, task_id.coroutine_id.unwrap());
                         let _ = push_trap_record(
                             task_id.pid - 1, 
                             UserTrapRecord {
@@ -167,6 +167,13 @@ pub fn trap_return() -> ! {
     unsafe {
         sstatus::clear_sie();
     }
+    // let pid = current_task().unwrap().getpid();
+    // let tid = sys_gettid() as usize;
+    
+    // if pid == 1 && tid == 1 {
+    //     error!("run tid: {}", tid);
+    // }
+
     current_process()
         .unwrap()
         .acquire_inner_lock()

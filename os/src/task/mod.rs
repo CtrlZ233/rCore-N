@@ -70,10 +70,10 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     let mut inner = task.acquire_inner_lock();
     let tid = inner.res.as_ref().unwrap().tid;
     // warn!("exit start: {}", tid);
-    // info!(
-    //     "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}",
-    //     task.getpid(), tid, exit_code, inner.time_intr_count, inner.total_cpu_cycle_count
-    // );
+    info!(
+        "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}",
+        task.getpid(), tid, exit_code, inner.time_intr_count, inner.total_cpu_cycle_count
+    );
 
     // Change status to Zombie
     inner.task_status = TaskStatus::Zombie;
@@ -139,7 +139,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
 lazy_static! {
     pub static ref INITPROC: Arc<ProcessControlBlock> =
-        ProcessControlBlock::new(get_app_data_by_name("connect_thread_test").unwrap());
+        ProcessControlBlock::new(get_app_data_by_name("connect_test").unwrap());
 }
 
 pub fn add_initproc() {

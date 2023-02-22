@@ -10,6 +10,7 @@ use crate::trace::{
     ENABLE_USER_EXT_INT_EXIT, PUSH_TRAP_RECORD_ENTER, PUSH_TRAP_RECORD_EXIT,
 };
 use crate::{mm::PhysPageNum, plic::get_context};
+use alloc::sync::Arc;
 use alloc::{collections::BTreeMap, vec::Vec};
 use core::arch::asm;
 use heapless::spsc::Queue;
@@ -129,19 +130,17 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
     if let Some(pcb) = pid2process(pid) {
         let mut pcb_inner = pcb.acquire_inner_lock();
         if !pcb_inner.is_user_trap_enabled() {
-            // warn!("[push trap record] User trap disabled!");
+            warn!("[push trap record] User trap disabled!");
             // return Err(UserTrapError::TrapDisabled);
         }
         if let Some(trap_info) = &mut pcb_inner.user_trap_info {
             let res = trap_info.push_trap_record(trap_record);
             let mut task = None;
-            if pcb_inner.user_trap_handler_task.is_some() {
-                task = pcb_inner.user_trap_handler_task.take();
-            }
+            task = pcb_inner.user_trap_handler_task.take();
             drop(pcb_inner);
-            if task.is_some() {
-                add_task(task.unwrap());
-                debug!("wake handler task");
+            if let Some(tcb) = task {
+                // error!("wake handler task: {}", tcb.acquire_inner_lock().res.as_ref().unwrap().tid);
+                add_task(tcb);
             }
             push_trace(PUSH_TRAP_RECORD_EXIT);
             res

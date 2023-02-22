@@ -67,6 +67,26 @@ pub fn poll_user_future() {
         }
     }
 }
+
+pub fn add_virtual_core() {
+    unsafe {
+        let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        let tid = thread_create(poll_user_future as usize, 0) as usize;
+        (*exe).add_wait_tid(tid);
+    }
+}
+
+pub fn wait_other_cores() {
+    unsafe {
+        let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        for tid in (*exe).waits.iter() {
+            waittid(*tid);
+        }
+    }
+}
+
 /// 内核执行协程
 pub fn poll_kernel_future() {
     unsafe {

@@ -26,6 +26,8 @@ pub struct Executor {
     pub priority: usize,
     /// 整个 Executor 的读写锁，内核读取 priority 时，可以不获取这个锁，在唤醒协程时，需要获取锁
     pub wr_lock: Mutex<()>,
+    /// 执行器线程id
+    pub waits: Vec<usize>,
 }
 
 impl Executor {
@@ -38,6 +40,7 @@ impl Executor {
             bitmap: BitMap(0),
             priority: PRIO_NUM,
             wr_lock: Mutex::new(()),
+            waits: Vec::new(),
         }
     }
 }
@@ -98,6 +101,12 @@ impl Executor {
             Some(task)
         }
     }
+    /// 增加执行器线程
+    pub fn add_wait_tid(&mut self, tid: usize) {
+        let _lock = self.wr_lock.lock();
+        self.waits.push(tid);
+    }
+
     /// 阻塞协程重新入队
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
         let _lock = self.wr_lock.lock();
