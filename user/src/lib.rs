@@ -38,7 +38,8 @@ pub extern "C" fn _start() {
     }
     heap::init();
     unifi_exposure::init_unifi_sche(unsafe { INTERFACE_TABLE as usize });
-    add_coroutine(Box::pin(async{ main(); }), unifi_exposure::PRIO_NUM - 1);
+    unifi_exposure::spawn(move || async{ main(); }, unifi_exposure::PRIO_NUM - 1, getpid() as usize + 1
+    );
 }
 
 // 共享库的接口表地址，内核解析 elf 时填充
@@ -46,11 +47,7 @@ pub extern "C" fn _start() {
 #[link_section = ".bss.interface"]
 static mut INTERFACE_TABLE: *mut usize = 0 as *mut usize;
 
-// 用户态添加协程
-pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-    let pid = getpid() as usize;
-    unifi_exposure::add_coroutine(future, prio, pid + 1);
-}
+
 
 // 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {

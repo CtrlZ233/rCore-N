@@ -57,11 +57,11 @@ impl UnifiScheFunc {
         }
     }
 
-    fn add_coroutine(&self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize){
+    fn spawn(&self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize){
         unsafe {
-            let add_coroutine_true: fn(Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, usize, usize) = 
+            let spawn_fn: fn(Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, usize, usize) = 
                 core::mem::transmute(*(self.0 as *mut usize).add(ADD_COROUTINE));
-            add_coroutine_true(future, prio, pid);
+                spawn_fn(future, prio, pid);
         }
     }
 
@@ -109,10 +109,7 @@ pub fn user_entry() -> usize {
 pub fn max_prio_pid() -> usize {
     UNIFI_SCHE.get().unwrap().max_prio_pid()
 }
-/// 添加协程
-pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize){
-    UNIFI_SCHE.get().unwrap().add_coroutine(future, prio, pid);
-}
+
 /// 运行内核协程
 pub fn poll_kernel_future() {
     UNIFI_SCHE.get().unwrap().poll_kernel_future();
@@ -128,4 +125,13 @@ pub fn current_cid(is_kernel: bool) -> usize {
 /// 更新协程优先级
 pub fn reprio(cid: usize, prio: usize) {
     UNIFI_SCHE.get().unwrap().reprio(cid, prio);
+}
+
+/// 添加协程
+pub fn spawn<F, T>(f: F, prio: usize, pid: usize) 
+where 
+    F: FnOnce() -> T,
+    T: Future<Output=()> + 'static + Send + Sync
+{
+    UNIFI_SCHE.get().unwrap().spawn(Box::pin(f()), prio, pid);
 }

@@ -51,7 +51,7 @@ extern "C" fn _start() -> usize {
     unsafe {
         INTERFACE[0] = user_entry as usize;
         INTERFACE[1] = max_prio_pid as usize;
-        INTERFACE[2] = add_coroutine as usize;
+        INTERFACE[2] = executor::spawn as usize;
         INTERFACE[3] = poll_kernel_future as usize;
         INTERFACE[4] = re_back as usize;
         INTERFACE[5] = current_cid as usize;

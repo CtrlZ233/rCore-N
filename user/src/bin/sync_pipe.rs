@@ -35,11 +35,11 @@ pub fn main() -> i32 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            add_coroutine(Box::pin(server(readi, writei, key + 1)), 1);
+            unifi_exposure::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1);
             readi = fd2[0];
             key += 1;
         }
-        add_coroutine(Box::pin(client(first_write, readi, first_key, key)), 0);
+        unifi_exposure::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1);
         key += 2;
     }
     0
@@ -66,7 +66,7 @@ async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
 
     let buffer = [0u8; BUFFER_SIZE];
     let buffer_ptr = buffer.as_ptr() as usize;
-    read!(ASYNC_SYSCALL_READ, fd2, buffer_ptr, buffer.len(), key2, current_cid());
+    read!(fd2, buffer_ptr, buffer.len(), key2, current_cid());
     // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
     // ac_r.await;
     // print!("------------------buffer: ");

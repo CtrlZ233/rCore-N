@@ -62,7 +62,7 @@ impl Executor {
         self.priority = self.bitmap.get_priority();
     }
     /// 添加协程
-    pub fn add_coroutine(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
+    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
         let task = Coroutine::new(future, prio);
         let cid = task.cid;
         let lock = self.wr_lock.lock();

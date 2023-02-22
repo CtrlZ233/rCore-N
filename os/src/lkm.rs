@@ -33,8 +33,8 @@ fn add_lkm_image(){
         INTERFACE_TABLE = unfi_sche_start() as *mut usize;
     }
     unifi_exposure::init_unifi_sche(unsafe { INTERFACE_TABLE as usize });
-    unifi_exposure::add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0, 0);
-    unifi_exposure::add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0, 0);
+    unifi_exposure::spawn(|| async{ error!("add_coroutine"); }, 0, 0);
+    unifi_exposure::spawn(|| async{ error!("add_coroutine"); }, 0, 0);
     debug!("unfi init done");
 
 }
