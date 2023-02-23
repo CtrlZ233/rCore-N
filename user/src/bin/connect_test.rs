@@ -10,6 +10,7 @@ use core::u64::MAX;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use alloc::vec;
+use alloc::collections::VecDeque;
 use spin::Mutex;
 use core::ops::{Add, Sub, Mul};
 use rand_core::{RngCore, SeedableRng};
@@ -46,6 +47,9 @@ const CLIENT_POLL_THREDS: usize = 3 - 1;
 static RECEIVE_BUFFER: Vec<Mutex<usize>> = Vec::new();
 static SERVER_BUFFER: Vec<Mutex<usize>> = Vec::new();
 
+static TIMER_QUEUE: Vec<Mutex<VecDeque<usize>>> = Vec::new();
+static REQ_DELAY: Vec<Vec> = Vec::new();
+
 #[no_mangle]
 pub fn main() -> i32 {
     let pid = getpid();
@@ -71,6 +75,13 @@ pub fn main() -> i32 {
     let pid = fork();
     if pid == 0 {
         // 客户端进程
+        for i in 0..MAX_CONNECTION {
+            unsafe {
+                TIMER_QUEUE.push(Mutex::new(VecDeque::new()));
+                REQ_DELAY.push(Vec::new());
+            }
+        }
+
         let init_res = init_user_trap();
         println!(
             "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
@@ -111,7 +122,8 @@ pub fn main() -> i32 {
             for i in 0..MAX_CONNECTION {
                 let send_cid = add_coroutine(Box::pin(msg_sender(CONNECTIONS[i][3], i + MAX_CONNECTION, pid)), 1);
                 // let server_cid = add_coroutine(future, prio)
-                add_coroutine(Box::pin(msg_receiver(CONNECTIONS[i][0], i)), 1);
+                let server_cid = add_coroutine(Box::pin(msg_server(i, send_cid)), 1);
+                add_coroutine(Box::pin(msg_receiver(CONNECTIONS[i][0], i, server_cid)), 1);
             }
         }
 
@@ -132,63 +144,36 @@ pub fn main() -> i32 {
     0
 }
 
-// fn server() {
-//     let mut throughput = 0;
-//     let len = DATA_S.len();
-
-//     unsafe {
-//         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
-//             {
-//                 let mut count = MSG_COUNT.lock();
-//                 if count.eq(&0) {
-//                     continue;
-//                 }
-//                 *count = count.sub(1);
-//             }
-//             matrix::matrix_mul_test(MATRIX_SIZE);
-            
-//             throughput += 1;
-//             // println!("tid: {}, throughtput: {}", tid, throughput);
-//         }
-//     }
-    
-//     {
-//         let mut res = RES_LOCK.lock();
-//         *res = res.add(throughput);
-//         println!("total throughput: {} Kbytes, count: {}", res.mul(len).checked_div(1024).unwrap(), MSG_COUNT.lock());
-//     }
-
-//     exit(0);
-    
-// }
 
 async fn msg_server(key: usize, cid: usize) {
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
-            unsafe {
-                {
-                    let recv_count = RECEIVE_BUFFER[key].lock();
-                    if recv_count.eq(&0) {
-                        // await切换
-                        continue;
-                    }
-                    *recv_count = recv_count.sub(1);
+            {
+                let recv_count = RECEIVE_BUFFER[key].lock();
+                if recv_count.eq(&0) {
+                    // 切换协程
+                    let mut helper = Box::new(TimerHelper::new());
+                    helper.as_mut().await;
+                    continue;
                 }
-                
-                matrix::matrix_mul_test(MATRIX_SIZE);
+                *recv_count = recv_count.sub(1);
+            }
+            
+            matrix::matrix_mul_test(MATRIX_SIZE);
 
-                {
-                    let server_count = SERVER_BUFFER[key].lock();
-                    *server_count = server_count.add(1);
+            {
+                let server_count = SERVER_BUFFER[key].lock();
+                *server_count = server_count.add(1);
+                if server_count.eq(&1) {
+                    // 唤醒sender协程
                     re_back(cid);
                 }
-                
             }
         }
     }
 }
 
-async fn msg_receiver(server_fd: usize, key: usize) {
+async fn msg_receiver(server_fd: usize, key: usize, cid: usize) {
     // println!("server start");
     let mut buffer = [0u8; DATA_C.len()];
     let buffer_ptr = buffer.as_ptr() as usize;
@@ -196,8 +181,12 @@ async fn msg_receiver(server_fd: usize, key: usize) {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
             read!(ASYNC_SYSCALL_READ, server_fd, buffer_ptr, buffer.len(), key, current_cid());
             {
-                let mut count = MSG_COUNT.lock();
-                *count = count.add(1);
+                let recv_count = RECEIVE_BUFFER[key].lock();
+                *recv_count = recv_count.add(1);
+                if recv_count.eq(&1) {
+                    // 唤醒server协程
+                    re_back(cid);
+                }
             }
         }
     }
@@ -208,6 +197,15 @@ async fn msg_sender(server_fd: usize, key: usize, pid: usize) {
     let req = DATA_C;
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
+            {
+                let server_count = SERVER_BUFFER[key - MAX_CONNECTION].lock();
+                if server_count.eq(&0) {
+                    // 切换协程
+                    let mut helper = Box::new(TimerHelper::new());
+                    helper.as_mut().await;
+                    continue;
+                }
+            }
             async_write(client_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
         }
     }
@@ -225,6 +223,7 @@ async fn client_send(client_fd: usize, key: usize, pid: usize) {
             // let end = get_time();
             // println!("cost time: {}", end - start);
             async_write(client_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+            TIMER_QUEUE[key].lock().push_back(get_time() as usize);
         }
     }
     close(client_fd);
@@ -238,6 +237,10 @@ async fn client_recv(client_fd: usize, key: usize) {
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
             read!(ASYNC_SYSCALL_READ, server_fd, buffer_ptr, buffer.len(), key, current_cid());
+            let cur = get_time();
+            let start = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_back().unwrap();
+            REQ_DELAY[key - MAX_CONNECTION].push(cur - start);
+
         }
     }
     close(client_fd);
@@ -267,6 +270,31 @@ impl Future for TimerHelper {
             return Poll::Pending;
         }
         
+        return Poll::Ready(());
+    }
+}
+
+
+struct AwaitHelper {
+    flag: bool,
+}
+
+impl AwaitHelper {
+    fn new() -> Self {
+        AwaitHelper {
+            flag: false,
+        }
+    }
+}
+
+impl Future for AwaitHelper {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.flag == false {
+            self.flag = true;
+            return Poll::Pending;
+        }
         return Poll::Ready(());
     }
 }
