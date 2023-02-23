@@ -20,7 +20,7 @@ mod config;
 extern crate alloc;
 
 use executor::*;
-use prio_array::max_prio_pid;
+use prio_array::{max_prio_pid, update_prio};
 use syscall::*;
 use crate::config::{ENTRY, MAX_THREAD_NUM};
 
@@ -57,6 +57,7 @@ extern "C" fn _start() -> usize {
         INTERFACE[5] = current_cid as usize;
         INTERFACE[6] = reprio as usize;
         INTERFACE[7] = add_virtual_core as usize;
+        INTERFACE[8] = update_prio as usize;
         &INTERFACE as *const [usize; 10] as usize
     }
 }

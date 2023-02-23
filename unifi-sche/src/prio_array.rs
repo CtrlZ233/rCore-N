@@ -16,11 +16,11 @@ pub fn update_prio(idx: usize, prio: usize) {
 /// 所有进程的优先级相同时，则内核会优先执行协程，这里用 0 来表示内核的优先级
 pub fn max_prio_pid() -> usize {
     let mut ret;
-    let mut pid = 0;
+    let mut pid = 1;
     unsafe {
-        ret = PRIO_ARRAY[0].load(Ordering::Relaxed);
+        ret = PRIO_ARRAY[1].load(Ordering::Relaxed);
     }
-    for i in 1..MAX_PROC_NUM {
+    for i in 2..MAX_PROC_NUM {
         unsafe {
             let prio = PRIO_ARRAY[i].load(Ordering::Relaxed);
             if prio < ret {

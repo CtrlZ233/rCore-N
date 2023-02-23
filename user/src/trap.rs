@@ -64,10 +64,6 @@ pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
         ucause::Trap::Interrupt(ucause::Interrupt::UserSoft) => {
             // push_trace(TRAP_QUEUE_ENTER);
             let trap_queue = unsafe { &mut *(USER_TRAP_BUFFER as *mut UserTrapQueue) };
-            // println!(
-            //     "[user trap] Received {} trap from kernel.{}",
-            //     trap_queue.len(), USER_TRAP_BUFFER
-            // );
             unsafe {
                 uip::clear_usoft();
             }

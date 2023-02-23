@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+use unifi_exposure::update_prio;
 use crate::config::{CPU_NUM, MEMORY_END};
 use crate::loader::get_app_data_by_name;
 use crate::{mm, println};
@@ -66,6 +67,7 @@ pub fn sys_fork() -> isize {
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
+    // update_prio(2, 0);
     add_task((*task).clone());
     debug!("new_task {:?} via fork", new_pid);
     new_pid as isize

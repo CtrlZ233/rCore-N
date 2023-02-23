@@ -8,3 +8,4 @@ pub const RE_BACK: usize            = 4;
 pub const CURRENT_CID: usize        = 5;
 pub const REPRIO: usize             = 6;
 pub const ADD_VIRTUAL_CORE: usize   = 7;
+pub const UPDATE_PRIO: usize        = 8;

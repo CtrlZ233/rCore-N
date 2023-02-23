@@ -1,7 +1,7 @@
 use super::TaskControlBlock;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use unifi_exposure::max_prio_pid;
+use unifi_exposure::{max_prio_pid, update_prio};
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
@@ -30,11 +30,14 @@ impl TaskManager {
         // // May need to concern affinity
         // debug!("tasks total: {}", self.ready_queue.len());
         // // error!("max prio pid is {}", crate::lkm::max_prio_pid());
-        // let prio_pid = unifi_exposure::max_prio_pid();
-        // // 如果内核协程的优先级最高，则
-        // // if prio_pid == 0 {
-        // //     return None;
-        // // }
+        // let prio_pid = unifi_exposure::max_prio_pid() - 1;
+        // // // 如果内核协程的优先级最高，则
+        // // // if prio_pid == 0 {
+        // // //     return None;
+        // // // }
+        // if prio_pid == 1 {
+        //     info!("fetch client process");
+        // }
         // let n = self.ready_queue.len();
         // if n == 0 { return None; }
         // let mut peek;

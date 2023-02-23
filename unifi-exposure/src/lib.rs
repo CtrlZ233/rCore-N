@@ -57,6 +57,13 @@ impl UnifiScheFunc {
         }
     }
 
+    fn update_prio(&self, pid: usize, prio: usize) {
+        unsafe {
+            let update_prio: fn(usize, usize) = core::mem::transmute(*(self.0 as *mut usize).add(UPDATE_PRIO));
+            update_prio(pid, prio);
+        }
+    }
+
     fn add_coroutine(&self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) -> usize {
         unsafe {
             let add_coroutine_true: fn(Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, usize, usize) -> usize = 
@@ -116,6 +123,12 @@ pub fn user_entry() -> usize {
 pub fn max_prio_pid() -> usize {
     UNIFI_SCHE.get().unwrap().max_prio_pid()
 }
+
+/// 更新优先级
+pub fn update_prio(pid: usize, prio: usize) {
+    UNIFI_SCHE.get().unwrap().update_prio(pid, prio);
+}
+
 /// 添加协程
 pub fn add_coroutine(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) -> usize {
     UNIFI_SCHE.get().unwrap().add_coroutine(future, prio, pid)
