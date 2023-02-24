@@ -38,7 +38,7 @@ static MSG_COUNT: Mutex<usize> = Mutex::new(0);
 // pub const DATA_C: &str = "a";
 // pub const DATA_S: &str = "x";
 
-const MAX_CONNECTION: usize = 256;
+const MAX_CONNECTION: usize = 512;
 
 static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
 
@@ -53,6 +53,7 @@ static mut SENDER_AWAIT: Vec<AtomicBool> = Vec::new();
 
 static mut TIMER_QUEUE: Vec<Mutex<VecDeque<usize>>> = Vec::new();
 static mut REQ_DELAY: Vec<Vec<usize>> = Vec::new();
+
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -271,17 +272,34 @@ async fn client_recv(client_fd: usize, key: usize) {
         }
     }
     close(client_fd);
-    print_data(key - MAX_CONNECTION);
+    print_ans(key - MAX_CONNECTION);
 }
 
 
-fn print_data(key: usize) {
+fn print_ans(key: usize) {
     unsafe {
-        let _lock = RES_LOCK.lock();
-        for delay in REQ_DELAY[key].iter() {
-            print!("{} ", delay);
+        let mut avg = 0;
+        let mut sigma = 0;
+        if REQ_DELAY[key].len() > 2 {
+            REQ_DELAY[key].sort();
+            REQ_DELAY[key].remove(0);
+            REQ_DELAY[key].pop();
+            let sum: usize = REQ_DELAY[key].iter().sum();
+            avg = sum as isize / (REQ_DELAY[key].len() as isize);
+
+            let mut sigma_sum = 0;
+            for delay in REQ_DELAY[key].iter() {
+                let tmp = (*delay) as isize - avg;
+                sigma_sum += tmp * tmp;
+            }
+
+            sigma = sigma_sum / (REQ_DELAY[key].len() as isize);
         }
-        println!("");
+
+        {
+            let _lock = RES_LOCK.lock();
+            println!("[connection: {}], avg delay: {}, sigma delay: {}", key, avg, sigma);
+        }
     }
 }
 
