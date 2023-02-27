@@ -3,7 +3,7 @@ pub const PAGE_SIZE: usize = 0x1000;
 /// 跳板页虚拟地址
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
 /// 用户态中断虚拟地址
-pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
+pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - 4 * PAGE_SIZE;
 /// 共享调度器使用的数据所在的虚拟地址，在这个位置记录了用户程序堆的虚拟地址
 /// 在共享代码中操作不同进程的堆和 Executor 主要是读取这个虚拟地址中保存的用户程序堆 heap 的虚拟地址
 /// 再来进行分配

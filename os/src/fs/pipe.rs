@@ -203,6 +203,7 @@ impl File for Pipe {
                     //return read_size;
                 }
                 drop(ring_buffer);
+                // info!("read aread suspend");
                 crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, unifi_exposure::current_cid(true));
                 helper.as_mut().await;
                 continue;
