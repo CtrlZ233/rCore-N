@@ -89,6 +89,7 @@ fn user_interrupt_handler() {
     }
 
     loop {
+        // println!("i'm here");
         hang();
     }
 }

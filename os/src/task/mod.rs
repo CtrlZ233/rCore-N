@@ -18,7 +18,7 @@ use switch::__switch2;
 
 pub use context::TaskContext;
 pub use pid::{pid_alloc, KernelStack, PidHandle};
-pub use pool::{add_task, fetch_task, prioritize_task, pid2process, add_user_intr_task};
+pub use pool::{add_task, fetch_task, prioritize_task, pid2process, add_user_intr_task, remove_uintr_task};
 pub use processor::{
     current_task, current_process, current_trap_cx, current_user_token, hart_id, mmap, munmap, run_tasks, schedule,
     set_current_priority, take_current_task, current_trap_cx_user_va

@@ -4,10 +4,10 @@ use riscv::register::{ucause, uepc, uip, ustatus::Ustatus, utval};
 
 pub const PAGE_SIZE: usize = 0x1000;
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
-pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - 4 * PAGE_SIZE;
+pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
 pub const UNFI_SCHE_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
 pub const TRAP_CONTEXT: usize = UNFI_SCHE_BUFFER - PAGE_SIZE;
-const MAX_USER_TRAP_NUM: usize = 512;
+const MAX_USER_TRAP_NUM: usize = 128;
 
 use rv_plic::PLIC;
 
@@ -62,13 +62,14 @@ pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
     push_trace(U_TRAP_HANDLER + ucause.bits());
     match ucause.cause() {
         ucause::Trap::Interrupt(ucause::Interrupt::UserSoft) => {
+            // println!("enter trap handler");
             // push_trace(TRAP_QUEUE_ENTER);
             let trap_queue = unsafe { &mut *(USER_TRAP_BUFFER as *mut UserTrapQueue) };
             unsafe {
                 uip::clear_usoft();
             }
             while let Some(trap_record) = trap_queue.dequeue() {
-                // println!("enter trap handler");
+                // println!("enter trap handler2");
                 let cause = trap_record.cause;
                 let msg = trap_record.message;
                 if cause & 0xF == 0 {

@@ -19,6 +19,7 @@ pub fn max_prio_pid() -> usize {
     let mut pid = 1;
     unsafe {
         ret = PRIO_ARRAY[1].load(Ordering::Relaxed);
+        // println!("ret: {}", PRIO_ARRAY[2].load(Ordering::Relaxed));
     }
     for i in 2..MAX_PROC_NUM {
         unsafe {

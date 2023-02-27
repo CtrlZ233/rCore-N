@@ -74,15 +74,15 @@ fn user_entry() {
     // let mut thread = Thread::new();
     // thread.execute();
 
-    let start = get_time();
+    // let start = get_time();
 
     poll_user_future();
-    
+
     wait_other_cores();
 
     
-    let end = get_time();
-    println!("total time: {} ms", end - start);
+    // let end = get_time();
+    // println!("total time: {} ms", end - start);
     
     exit(0);
 }

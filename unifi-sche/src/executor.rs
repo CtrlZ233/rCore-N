@@ -31,16 +31,15 @@ pub fn poll_user_future() {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         let tid = gettid();
+
         loop {
-            let pid = getpid() as usize;
             if (*exe).is_empty() {
-                println!("ex is empty");
+                // println!("ex is empty");
                 break;
             }
+            
             let task = (*exe).fetch(tid as usize);
             // 每次取出协程之后，需要更新优先级标记
-            let prio = (*exe).priority;   
-            update_prio(pid + 1, prio);
             match task {
                 Some(task) => {
                     let cid = task.cid;
@@ -51,16 +50,24 @@ pub fn poll_user_future() {
                             (*exe).del_coroutine(cid);
                         }
                     };
+                    // bug need to fix: 更新优先级应该等当前优先级的协程执行完之后才能更新；此外，多线程下会有问题。
+                    // 如果协程在执行时时间片用完，当前进程的优先级要保证较高才能继续调度，因此延迟更新优先级。
+                    {
+                        let _lock = (*exe).wr_lock.lock();
+                        let prio = (*exe).priority;
+                        update_prio(getpid() as usize + 1, prio);
+                    }
+                    
                 }
                 _ => {
-                    // println!("no ready task");
+                    // println!("no task");
                     // 任务队列不为空，但就绪队列为空，等待任务唤醒
                     yield_();
                 }
             }
             // 执行完优先级最高的协程，检查优先级，判断是否让权
             let max_prio_pid = max_prio_pid();
-            if pid + 1 != max_prio_pid {
+            if getpid() as usize + 1 != max_prio_pid {
                 yield_();
             }
         }

@@ -123,11 +123,7 @@ impl Processor {
             drop(task_inner);
             // ---- release current PCB lock
             // push back to ready queue.
-            if is_user_intr_task {
-                add_user_intr_task(task);
-            } else {
-                add_task(task);
-            }
+            add_task(task);
             
         }
     }

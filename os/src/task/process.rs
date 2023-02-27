@@ -88,7 +88,7 @@ impl ProcessControlBlockInner {
         if self.user_trap_info.is_none() {
             // R | W
             info!("USER_TRAP_BUFFER: {}", USER_TRAP_BUFFER);
-            if self.mmap(USER_TRAP_BUFFER, 4 * PAGE_SIZE, 0b11).is_ok() {
+            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE, 0b11).is_ok() {
                 let phys_addr =
                     translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
                 self.user_trap_info = Some(UserTrapInfo {

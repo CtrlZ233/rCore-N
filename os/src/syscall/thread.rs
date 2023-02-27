@@ -1,4 +1,4 @@
-use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock}, trap::{trap_handler, TrapContext}};
+use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock, remove_uintr_task}, trap::{trap_handler, TrapContext}};
 use alloc::sync::Arc;
 use crate::task::{block_current_and_run_next, current_process, suspend_current_and_run_next, take_current_task, WAIT_LOCK, WAITTID_LOCK};
 
@@ -47,10 +47,12 @@ pub fn sys_hang() -> isize {
     let task = current_task().unwrap();
     let process = task.process.upgrade().unwrap();
     let mut process_inner = process.acquire_inner_lock();
+    let pid = process.pid.0;
     if process_inner.user_trap_info.is_some() && process_inner.user_trap_info.as_ref().unwrap().get_trap_queue().is_empty() {
         process_inner.user_trap_handler_task = Some(task);
         drop(process_inner);
         drop(process);
+        remove_uintr_task(pid);
         block_current_and_run_next();
     } else {
         drop(process_inner);

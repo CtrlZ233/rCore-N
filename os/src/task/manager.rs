@@ -1,11 +1,13 @@
-use super::TaskControlBlock;
+use alloc::collections::BTreeSet;
+
+use super::{TaskControlBlock, task};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use unifi_exposure::max_prio_pid;
+use unifi_exposure::{max_prio_pid, update_prio};
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
-    user_intr_task_queue: VecDeque<Arc<TaskControlBlock>>
+    user_intr_task_queue: BTreeSet<usize>
 }
 
 /// A simple FIFO scheduler.
@@ -13,15 +15,15 @@ impl TaskManager {
     pub fn new() -> Self {
         Self {
             ready_queue: VecDeque::new(),
-            user_intr_task_queue: VecDeque::new(),
+            user_intr_task_queue: BTreeSet::new(),
         }
     }
     pub fn add(&mut self, task: Arc<TaskControlBlock>) {
         self.ready_queue.push_back(task);
     }
 
-    pub fn add_user_intr_task(&mut self, task: Arc<TaskControlBlock>) {
-        self.user_intr_task_queue.push_back(task);
+    pub fn add_user_intr_task(&mut self, pid: usize) {
+        self.user_intr_task_queue.insert(pid);
     }
 
     #[allow(unused)]
@@ -33,12 +35,22 @@ impl TaskManager {
             }
         }
     }
+
+    pub fn remove_uintr_task(&mut self, pid: usize) {
+        self.user_intr_task_queue.remove(&pid);
+    }
+
     pub fn fetch(&mut self) -> (Option<(Arc<TaskControlBlock>)>, bool) {
         // May need to concern affinity
         
         // error!("max prio pid is {}", crate::lkm::max_prio_pid());
         if !self.user_intr_task_queue.is_empty() {
-            return (self.user_intr_task_queue.pop_back(), true);
+            for pid in self.user_intr_task_queue.iter() {
+                update_prio(pid + 1, 0);
+                // info!("update prio: {}", pid);
+            }
+            // info!("fetch user intr task");
+            // return (self.user_intr_task_queue.pop_back(), true);
         }
 
         

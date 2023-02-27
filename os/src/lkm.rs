@@ -1,10 +1,16 @@
-use crate::loader::get_app_data_by_name;
+use crate::{loader::get_app_data_by_name, task::pid2process, config::UNFI_SCHE_BUFFER};
 use alloc::vec::Vec;
+use buddy_system_allocator::LockedHeap;
+use unifi_exposure::{Executor, CoroutineId};
 use crate::mm::{KERNEL_SPACE, MemorySet};
 use lazy_static::*;
 use alloc::sync::Arc;
 use core::mem::transmute;
 use alloc::boxed::Box;
+
+use crate::{
+    mm::translate_writable_va,
+};
 
 lazy_static! {
     pub static ref UNFI_SCHE_DATA: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("unifi-sche").unwrap().to_vec());
@@ -37,6 +43,18 @@ fn add_lkm_image(){
     unifi_exposure::add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0, 0);
     debug!("unfi init done");
 
+}
+
+#[allow(unused)]
+fn wake_cid(pid: usize, cid: usize) {
+    let token = pid2process(pid).unwrap().acquire_inner_lock().get_user_token();
+    let pa = translate_writable_va(token, UNFI_SCHE_BUFFER).unwrap();
+    unsafe {
+        let heapptr = *(pa as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        let prio = (*exe).re_back(CoroutineId(cid));
+    }
+    
 }
 
 pub const UNFI_SCHE_START: usize = 0x96000000usize;

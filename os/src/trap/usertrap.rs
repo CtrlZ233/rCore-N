@@ -1,4 +1,4 @@
-const MAX_USER_TRAP_NUM: usize = 512;
+const MAX_USER_TRAP_NUM: usize = 128;
 
 use crate::config::CPU_NUM;
 use crate::plic::Plic;
@@ -139,8 +139,8 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
             task = pcb_inner.user_trap_handler_task.take();
             drop(pcb_inner);
             if let Some(tcb) = task {
-                debug!("add user intr task");
-                add_user_intr_task(tcb);
+                add_task(tcb);
+                add_user_intr_task(pid);
             }
             push_trace(PUSH_TRAP_RECORD_EXIT);
             res
