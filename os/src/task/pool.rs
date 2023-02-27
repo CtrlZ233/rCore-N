@@ -26,6 +26,10 @@ impl TaskPool {
         self.scheduler.add(task);
     }
 
+    pub fn add_user_intr_task(&mut self, task: Arc<TaskControlBlock>) {
+        self.scheduler.add_user_intr_task(task);
+    }
+
     #[allow(unused)]
     pub fn remove(&mut self, task: Arc<TaskControlBlock>) {
         self.scheduler.remove(&task);
@@ -43,7 +47,7 @@ impl TaskPool {
         self.sleeping_tasks.insert(task);
     }
 
-    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
+    pub fn fetch(&mut self) -> (Option<Arc<TaskControlBlock>>, bool) {
         self.scheduler.fetch()
     }
 
@@ -57,7 +61,12 @@ pub fn add_task(task: Arc<TaskControlBlock>) {
     TASK_POOL.lock().add(task);
 }
 
-pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
+pub fn add_user_intr_task(task: Arc<TaskControlBlock>) {
+    TASK_POOL.lock().add_user_intr_task(task);
+}
+
+
+pub fn fetch_task() -> (Option<Arc<TaskControlBlock>>, bool) {
     TASK_POOL.lock().fetch()
 }
 

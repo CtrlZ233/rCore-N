@@ -135,6 +135,7 @@ impl File for Pipe {
                     return Ok(read_size);
                 }
                 drop(ring_buffer);
+                // info!("[pipe read] suspend");
                 suspend_current_and_run_next();
                 continue;
             }

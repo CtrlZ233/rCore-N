@@ -67,7 +67,7 @@ pub fn sys_fork() -> isize {
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
-    // update_prio(2, 0);
+    update_prio(2, 0);
     add_task((*task).clone());
     debug!("new_task {:?} via fork", new_pid);
     new_pid as isize

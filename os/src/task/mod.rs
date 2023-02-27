@@ -18,7 +18,7 @@ use switch::__switch2;
 
 pub use context::TaskContext;
 pub use pid::{pid_alloc, KernelStack, PidHandle};
-pub use pool::{add_task, fetch_task, prioritize_task, pid2process};
+pub use pool::{add_task, fetch_task, prioritize_task, pid2process, add_user_intr_task};
 pub use processor::{
     current_task, current_process, current_trap_cx, current_user_token, hart_id, mmap, munmap, run_tasks, schedule,
     set_current_priority, take_current_task, current_trap_cx_user_va
@@ -139,7 +139,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
 lazy_static! {
     pub static ref INITPROC: Arc<ProcessControlBlock> =
-        ProcessControlBlock::new(get_app_data_by_name("connect_thread_test").unwrap());
+        ProcessControlBlock::new(get_app_data_by_name("connect_test").unwrap());
 }
 
 pub fn add_initproc() {

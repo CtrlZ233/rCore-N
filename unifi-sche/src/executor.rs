@@ -30,16 +30,16 @@ pub fn poll_user_future() {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        let pid = getpid() as usize;
         let tid = gettid();
         loop {
+            let pid = getpid() as usize;
             if (*exe).is_empty() {
                 println!("ex is empty");
                 break;
             }
             let task = (*exe).fetch(tid as usize);
             // 每次取出协程之后，需要更新优先级标记
-            let prio = (*exe).priority;
+            let prio = (*exe).priority;   
             update_prio(pid + 1, prio);
             match task {
                 Some(task) => {

@@ -4,6 +4,7 @@ use super::__switch2;
 use super::add_task;
 use super::{fetch_task, TaskStatus};
 use crate::config::CPU_NUM;
+use crate::task::add_user_intr_task;
 use crate::trace::SCHEDULE;
 use crate::trace::{push_trace, RUN_NEXT, SUSPEND_CURRENT};
 use crate::trap::TrapContext;
@@ -103,7 +104,7 @@ impl Processor {
         }
     }
 
-    fn suspend_current(&self) {
+    fn suspend_current(&self, is_user_intr_task: bool) {
         trace!("[suspend current]");
         if let Some(task) = take_current_task() {
             // ---- hold current PCB lock
@@ -122,7 +123,12 @@ impl Processor {
             drop(task_inner);
             // ---- release current PCB lock
             // push back to ready queue.
-            add_task(task);
+            if is_user_intr_task {
+                add_user_intr_task(task);
+            } else {
+                add_task(task);
+            }
+            
         }
     }
 
@@ -131,9 +137,10 @@ impl Processor {
             if hart_id() == 0 {
                 unifi_exposure::poll_kernel_future();
             }
-            if let Some(task) = fetch_task() {
+            let (op_task, is_user_intr_task) = fetch_task();
+            if let Some(task) = op_task {
                 self.run_next(task);
-                self.suspend_current();
+                self.suspend_current(is_user_intr_task);
             }
         }
 

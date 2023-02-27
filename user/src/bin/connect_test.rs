@@ -33,12 +33,12 @@ static RUN_TIME_LIMIT: usize = 5_000;
 
 static RES_LOCK: Mutex<usize> = Mutex::new(0);
 
-const MATRIX_SIZE: usize = 50;
+const MATRIX_SIZE: usize = 1;
 static MSG_COUNT: Mutex<usize> = Mutex::new(0);
 // pub const DATA_C: &str = "a";
 // pub const DATA_S: &str = "x";
 
-const MAX_CONNECTION: usize = 128;
+const MAX_CONNECTION: usize = 32;
 
 static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
 
@@ -273,8 +273,11 @@ async fn client_recv(client_fd: usize, key: usize) {
             read!(ASYNC_SYSCALL_READ, client_fd, buffer_ptr, buffer.len(), key, current_cid());
             throughput += 1;
             let cur = get_time() as usize;
-            let start = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_back().unwrap();
-            REQ_DELAY[key - MAX_CONNECTION].push(cur - start);
+            if let Some(start) = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_back() {
+                REQ_DELAY[key - MAX_CONNECTION].push(cur - start);
+            } else {
+                println!("error!!!");
+            }
         }
     }
     close(client_fd);

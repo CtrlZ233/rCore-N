@@ -1,10 +1,11 @@
 use super::TaskControlBlock;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use unifi_exposure::{max_prio_pid, update_prio};
+use unifi_exposure::max_prio_pid;
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
+    user_intr_task_queue: VecDeque<Arc<TaskControlBlock>>
 }
 
 /// A simple FIFO scheduler.
@@ -12,11 +13,17 @@ impl TaskManager {
     pub fn new() -> Self {
         Self {
             ready_queue: VecDeque::new(),
+            user_intr_task_queue: VecDeque::new(),
         }
     }
     pub fn add(&mut self, task: Arc<TaskControlBlock>) {
         self.ready_queue.push_back(task);
     }
+
+    pub fn add_user_intr_task(&mut self, task: Arc<TaskControlBlock>) {
+        self.user_intr_task_queue.push_back(task);
+    }
+
     #[allow(unused)]
     pub fn remove(&mut self, task: &Arc<TaskControlBlock>) {
         for (idx, task_item) in self.ready_queue.iter().enumerate() {
@@ -26,33 +33,37 @@ impl TaskManager {
             }
         }
     }
-    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        // // May need to concern affinity
-        // debug!("tasks total: {}", self.ready_queue.len());
-        // // error!("max prio pid is {}", crate::lkm::max_prio_pid());
-        // let prio_pid = unifi_exposure::max_prio_pid() - 1;
-        // // // 如果内核协程的优先级最高，则
-        // // // if prio_pid == 0 {
-        // // //     return None;
-        // // // }
-        // if prio_pid == 1 {
-        //     info!("fetch client process");
-        // }
-        // let n = self.ready_queue.len();
-        // if n == 0 { return None; }
-        // let mut peek;
-        // let mut cnt = 0;
-        // loop {
-        //     peek = self.ready_queue.pop_front().unwrap();
-        //     let pid = peek.process.upgrade().unwrap().getpid();
-        //     if pid == prio_pid {
-        //         return Some(peek);
-        //     }
-        //     self.ready_queue.push_back(peek);
-        //     cnt += 1;
-        //     if cnt >= n { break; }
-        // }
-        self.ready_queue.pop_front()
+    pub fn fetch(&mut self) -> (Option<(Arc<TaskControlBlock>)>, bool) {
+        // May need to concern affinity
+        
+        // error!("max prio pid is {}", crate::lkm::max_prio_pid());
+        if !self.user_intr_task_queue.is_empty() {
+            return (self.user_intr_task_queue.pop_back(), true);
+        }
+
+        
+        let prio_pid = unifi_exposure::max_prio_pid() - 1;
+        // info!("total tasks: {}, {}", self.ready_queue.len(), prio_pid);
+
+        // // 如果内核协程的优先级最高，则
+        // // if prio_pid == 0 {
+        // //     return None;
+        // // }
+        let n = self.ready_queue.len();
+        if n == 0 { return (None, false); }
+        let mut peek;
+        let mut cnt = 0;
+        loop {
+            peek = self.ready_queue.pop_front().unwrap();
+            let pid = peek.process.upgrade().unwrap().getpid();
+            if pid == prio_pid {
+                return (Some(peek), false);
+            }
+            self.ready_queue.push_back(peek);
+            cnt += 1;
+            if cnt >= n { break; }
+        }
+        (self.ready_queue.pop_front(), false)
     }
 
     #[allow(unused)]
