@@ -1,5 +1,5 @@
 
-use unifi_exposure::{Executor, CoroutineId};
+use unifi_exposure::{Executor, CoroutineId, CoroutineKind};
 use crate::{config::UNFI_SCHE_BUFFER, prio_array::max_prio_pid};
 use alloc::boxed::Box;
 use core::pin::Pin;
@@ -14,14 +14,19 @@ use buddy_system_allocator::LockedHeap;
 
 
 /// 添加协程，内核和用户态都可以调用
-pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize) {
+pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        (*exe).spawn(future, prio);
+        (*exe).spawn(future, prio, kind);
         // 更新优先级标记
         let prio = (*exe).priority;
         update_prio(pid, prio);
+        if pid == 0 {
+            println_hart!("executor prio {}", hart_id(), prio);
+        } else {
+            println!("executor prio {}", prio);
+        }
     }
 }
 /// 用户程序执行协程
@@ -43,6 +48,7 @@ pub fn poll_user_future() {
             match task {
                 Some(task) => {
                     let cid = task.cid;
+                    // println!("user task kind {:?}", task.kind);
                     match task.execute() {
                         Poll::Pending => { }
                         Poll::Ready(()) => {
@@ -66,21 +72,40 @@ pub fn poll_user_future() {
         }
     }
 }
+/// hart_id
+#[allow(unused)]
+pub fn hart_id() -> usize {
+    let hart_id: usize;
+    unsafe {
+        core::arch::asm!("mv {}, tp", out(reg) hart_id);
+    }
+    hart_id
+}
 /// 内核执行协程
 pub fn poll_kernel_future() {
     unsafe {
         let heapptr = *(UNFI_SCHE_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         loop {
-            let task = (*exe).fetch(0);
+            let task = (*exe).fetch(hart_id());
             // 更新优先级标记
             let prio = (*exe).priority;
             update_prio(0, prio);
+            // println_hart!("executor prio {}", hart_id(), prio);
             match task {
                 Some(task) => {
                     let cid = task.cid;
+                    let kind = task.kind;
+                    let prio = task.inner.lock().prio;
+                    if prio != 7 {
+                        println_hart!("task prio {}", hart_id(), prio);
+                    }
                     match task.execute() {
                         Poll::Pending => {
+                            if kind == CoroutineKind::KernSche {
+                                // println_hart!("pending reback sche task{:?} kind {:?}", hart_id(), cid, kind);
+                                re_back(cid.0, 0);
+                            }
                         }
                         Poll::Ready(()) => {
                             (*exe).del_coroutine(cid);
@@ -88,7 +113,6 @@ pub fn poll_kernel_future() {
                     };
                 }
                 _ => {
-                    break;
                 }
             }
         }
@@ -96,7 +120,7 @@ pub fn poll_kernel_future() {
 }
 /// 获取当前正在执行的协程 id
 pub fn current_cid(is_kernel: bool) -> usize {
-    let tid = if is_kernel { 0 } else {
+    let tid = if is_kernel { hart_id() } else {
         gettid() as usize
     };
     assert!(tid < MAX_THREAD_NUM);

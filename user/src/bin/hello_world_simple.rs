@@ -15,9 +15,9 @@ pub fn main() -> i32 {
     println!("[hello world] from pid: {}", getpid());
     for i in 0..4096 {
         if i & 1 == 0 {
-            unifi_exposure::spawn(move || test1(), 1, getpid() as usize + 1);
+            unifi_exposure::spawn(move || test1(), 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
         } else {
-            unifi_exposure::spawn(move || test(), 1, getpid() as usize + 1);
+            unifi_exposure::spawn(move || test(), 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
         }
     }
     // sleep(100);

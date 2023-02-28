@@ -126,18 +126,17 @@ impl Processor {
         }
     }
 
-    pub fn run(&self) {
-        loop {
-            if hart_id() == 0 {
-                unifi_exposure::poll_kernel_future();
-            }
-            if let Some(task) = fetch_task() {
-                self.run_next(task);
-                self.suspend_current();
-            }
-        }
-
-    }
+    // pub fn run(&self) {
+    //     loop {
+    //         if hart_id() == 0 {
+    //             unifi_exposure::poll_kernel_future();
+    //         }
+    //         if let Some(task) = fetch_task() {
+    //             self.run_next(task);
+    //             self.suspend_current();
+    //         }
+    //     }
+    // }
     pub fn take_current(&self) -> Option<Arc<TaskControlBlock>> {
         self.inner.borrow_mut().current.take()
     }
@@ -154,6 +153,7 @@ impl Processor {
 //     pub static ref PROCESSOR: Processor = Processor::new();
 // }
 
+#[inline]
 pub fn hart_id() -> usize {
     let hart_id: usize;
     unsafe {
@@ -162,9 +162,40 @@ pub fn hart_id() -> usize {
     hart_id
 }
 
-pub fn run_tasks() {
-    debug!("run_tasks");
-    PROCESSORS[hart_id()].run();
+// pub fn run_tasks() {
+//     debug!("run_tasks");
+//     PROCESSORS[hart_id()].run();
+// }
+pub async fn run_tasks() {
+    let mut helper = Box::new(ReadHelper::new());
+    loop {
+        if let Some(task) = fetch_task() {
+            PROCESSORS[hart_id()].run_next(task);
+            PROCESSORS[hart_id()].suspend_current();
+        }
+        helper.as_mut().await;
+    }
+
+}
+use core::{task::{Context, Poll}, future::Future, pin::Pin};
+use alloc::boxed::Box;
+pub struct ReadHelper(usize);
+
+impl ReadHelper {
+    pub fn new() -> Self {
+        Self(0)
+    }
+}
+impl Future for ReadHelper {
+    type Output = ();
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.0 += 1;
+        if (self.0 & 1) == 1 {
+            return Poll::Pending;
+        } else {
+            return Poll::Ready(());
+        }
+    }
 }
 
 pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {

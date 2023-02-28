@@ -35,12 +35,12 @@ pub fn main() -> i32 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            unifi_exposure::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1);
+            unifi_exposure::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
             // sleep(100);
             readi = fd2[0];
             key += 1;
         }
-        unifi_exposure::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1);
+        unifi_exposure::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
         // sleep(100);
         key += 2;
     }

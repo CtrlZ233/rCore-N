@@ -57,8 +57,20 @@ impl Wake for CoroutineWaker {
 pub struct Coroutine{
     /// 协程编号
     pub cid: CoroutineId,
+    /// 协程类型
+    pub kind: CoroutineKind,
     /// future
     pub inner: Mutex<CoroutineInner>,
+}
+/// 协程类型
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum CoroutineKind {
+    /// 内核调度协程
+    KernSche,
+    /// 内核系统调用协程
+    KernSyscall,
+    /// 用户协程
+    UserNorm,
 }
 
 pub struct CoroutineInner {
@@ -71,11 +83,12 @@ pub struct CoroutineInner {
 
 impl Coroutine {
     /// 生成协程
-    pub fn new(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize) -> Arc<Self> {
+    pub fn new(future: Pin<Box<dyn Future<Output=()> + Send + Sync>>, prio: usize, kind: CoroutineKind) -> Arc<Self> {
         let cid = CoroutineId::generate();
         Arc::new(
             Coroutine {
                 cid,
+                kind,
                 inner: Mutex::new(CoroutineInner {
                     future,
                     prio,

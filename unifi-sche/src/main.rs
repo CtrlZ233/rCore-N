@@ -10,7 +10,8 @@
 
 #[macro_use]
 mod console;
-
+#[macro_use]
+mod kern_console;
 mod heap;
 mod executor;
 mod prio_array;

@@ -38,8 +38,7 @@ pub extern "C" fn _start() {
     }
     heap::init();
     unifi_exposure::init_unifi_sche(unsafe { INTERFACE_TABLE as usize });
-    unifi_exposure::spawn(move || async{ main(); }, unifi_exposure::PRIO_NUM - 1, getpid() as usize + 1
-    );
+    unifi_exposure::spawn(move || async{ main(); }, unifi_exposure::PRIO_NUM - 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
 }
 
 // 共享库的接口表地址，内核解析 elf 时填充

@@ -20,7 +20,7 @@ mod fun_offset;
 extern crate alloc;
 
 pub use executor::Executor;
-pub use coroutine::{CoroutineId, Coroutine};
+pub use coroutine::{CoroutineId, Coroutine, CoroutineKind};
 pub use config::PRIO_NUM;
 pub use config::MAX_PROC_NUM;
 use bitmap::BitMap;
@@ -57,11 +57,11 @@ impl UnifiScheFunc {
         }
     }
 
-    fn spawn(&self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize){
+    fn spawn(&self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind){
         unsafe {
-            let spawn_fn: fn(Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, usize, usize) = 
+            let spawn_fn: fn(Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, usize, usize, CoroutineKind) = 
                 core::mem::transmute(*(self.0 as *mut usize).add(ADD_COROUTINE));
-                spawn_fn(future, prio, pid);
+                spawn_fn(future, prio, pid, kind);
         }
     }
 
@@ -128,10 +128,10 @@ pub fn reprio(cid: usize, prio: usize) {
 }
 
 /// 添加协程
-pub fn spawn<F, T>(f: F, prio: usize, pid: usize) 
+pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind) 
 where 
     F: FnOnce() -> T,
     T: Future<Output=()> + 'static + Send + Sync
 {
-    UNIFI_SCHE.get().unwrap().spawn(Box::pin(f()), prio, pid);
+    UNIFI_SCHE.get().unwrap().spawn(Box::pin(f()), prio, pid, kind);
 }

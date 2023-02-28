@@ -53,7 +53,7 @@ pub fn async_sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: us
         // release Task lock manually to avoid deadlock
         drop(inner);
         let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
-        unifi_exposure::spawn(move || work, 0, 0);
+        unifi_exposure::spawn(move || work, 0, 0, unifi_exposure::CoroutineKind::KernSyscall);
         0
     } else {
         -1

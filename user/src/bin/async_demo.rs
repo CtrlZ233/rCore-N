@@ -20,8 +20,8 @@ pub fn main() -> i32 {
     let read_end = pipe_fd[0];
     let write_end = pipe_fd[1];
     // 先添加读的协程，再添加写的协程，两个协程的优先级相同
-    unifi_exposure::spawn(move || server_read(read_end, 333), 0, getpid() as usize + 1);
-    unifi_exposure::spawn(move || client_write(write_end, 333), 1, getpid() as usize + 1);
+    unifi_exposure::spawn(move || server_read(read_end, 333), 0, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
+    unifi_exposure::spawn(move || client_write(write_end, 333), 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
     0
 }
 
