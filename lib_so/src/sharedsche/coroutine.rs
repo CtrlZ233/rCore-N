@@ -2,14 +2,9 @@ use alloc::boxed::Box;
 use core::future::Future;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use alloc::{
-    sync::Arc,
-    task::Wake,
-};
+use alloc::{sync::Arc, task::Wake};
 use core::task::{Waker, Poll, Context};
 use spin::Mutex;
-
-
 
 /// 协程 Id
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash, Ord, PartialOrd)]

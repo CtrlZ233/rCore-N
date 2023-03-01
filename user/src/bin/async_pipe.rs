@@ -4,7 +4,6 @@
 extern crate alloc;
 extern crate user_lib;
 use user_lib::*;
-use alloc::boxed::Box;
 pub const PAIR_NUM: usize = 1;              //
 pub const MAX_LEN: usize = 256;            //
 // pub const REQUEST: &str = "test";
@@ -24,23 +23,23 @@ pub fn main() -> i32 {
         init_res, pid, end - start
     );
     let mut key: usize = 1;
-    for i in 0..PAIR_NUM {
+    for _i in 0..PAIR_NUM {
         // 先创建一个管道，客户端先写请求
         let mut fd1 = [0usize; 2];
         pipe(&mut fd1);
         let first_write = fd1[1];
         let mut readi = fd1[0];
         let first_key = key;
-        for j in 0..MAX_LEN - 1 {
+        for _j in 0..MAX_LEN - 1 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            unifi_exposure::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
+            lib_so::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
             // sleep(100);
             readi = fd2[0];
             key += 1;
         }
-        unifi_exposure::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
+        lib_so::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
         // sleep(100);
         key += 2;
     }

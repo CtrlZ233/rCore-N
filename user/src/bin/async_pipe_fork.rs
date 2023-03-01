@@ -4,7 +4,6 @@
 extern crate alloc;
 extern crate user_lib;
 use user_lib::*;
-use alloc::boxed::Box;
 
 pub const MAX_PROCESS: usize = 3;
 

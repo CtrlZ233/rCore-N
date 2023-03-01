@@ -15,8 +15,8 @@ pub const PAGE_SIZE_BITS: usize = 0xc;
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
 
 pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
-pub const UNFI_SCHE_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
-pub const TRAP_CONTEXT: usize = UNFI_SCHE_BUFFER - PAGE_SIZE;
+pub const HEAP_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
+pub const TRAP_CONTEXT: usize = HEAP_BUFFER - PAGE_SIZE;
 
 #[cfg(feature = "board_qemu")]
 pub const CLOCK_FREQ: usize = 12500000;

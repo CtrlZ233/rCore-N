@@ -5,7 +5,6 @@ extern crate alloc;
 
 extern crate user_lib;
 use user_lib::*;
-use alloc::boxed::Box;
 
 
 #[no_mangle]
@@ -20,8 +19,8 @@ pub fn main() -> i32 {
     let read_end = pipe_fd[0];
     let write_end = pipe_fd[1];
     // 先添加读的协程，再添加写的协程，两个协程的优先级相同
-    unifi_exposure::spawn(move || server_read(read_end, 333), 0, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
-    unifi_exposure::spawn(move || client_write(write_end, 333), 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
+    lib_so::spawn(move || server_read(read_end, 333), 0, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+    lib_so::spawn(move || client_write(write_end, 333), 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
     0
 }
 
@@ -31,7 +30,7 @@ pub const BUFFER_SIZE: usize = 80;
 // 服务端接收用户端的请求，从管道中读取内容
 async fn server_read(fd: usize, key: usize) {
     println!("server read start, cid: {}", current_cid());
-    let mut buffer = [0u8; BUFFER_SIZE];
+    let buffer = [0u8; BUFFER_SIZE];
     let buffer_ptr = buffer.as_ptr() as usize;
     read!(fd, buffer_ptr, buffer.len(), key, current_cid());
     print!("buffer: ");

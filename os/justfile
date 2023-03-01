@@ -15,11 +15,11 @@ KERNEL_BIN_LRV := BUILD_PATH + "rcore-n.bin"
 
 clean:
     cargo clean
-    cd ../unifi-sche && cargo clean
+    cd ../lib_so && cargo clean
     cd ../user && make clean && cd -
 
 unifi-sche:
-    cd ../unifi-sche && make build
+    cd ../lib_so && make build
 
 user:
     cd ../user && make build

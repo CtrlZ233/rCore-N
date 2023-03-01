@@ -116,7 +116,7 @@ pub fn rust_main(hart_id: usize) -> ! {
     if hart_id == 0 {
         loader::list_apps();
     }
-    unifi_exposure::spawn(move || task::run_tasks(), 7, 0, unifi_exposure::CoroutineKind::KernSche);
-    unifi_exposure::poll_kernel_future();
+    lib_so::spawn(move || task::run_tasks(), 7, 0, lib_so::CoroutineKind::KernSche);
+    lib_so::poll_kernel_future();
     panic!("Unreachable in rust_main!");
 }

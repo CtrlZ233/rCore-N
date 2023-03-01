@@ -13,8 +13,6 @@ pub mod user_uart;
 extern crate alloc;
 pub use syscall::*;
 mod heap;
-use core::{future::Future, pin::Pin};
-use alloc::boxed::Box;
 use riscv::register::mtvec::TrapMode;
 use riscv::register::{uie, utvec};
 
@@ -37,25 +35,18 @@ pub extern "C" fn _start() {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
     }
     heap::init();
-    unifi_exposure::init_unifi_sche(unsafe { INTERFACE_TABLE as usize });
-    unifi_exposure::spawn(move || async{ main(); }, unifi_exposure::PRIO_NUM - 1, getpid() as usize + 1, unifi_exposure::CoroutineKind::UserNorm);
+    lib_so::spawn(move || async{ main(); }, lib_so::PRIO_NUM - 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
 }
-
-// 共享库的接口表地址，内核解析 elf 时填充
-#[no_mangle]
-#[link_section = ".bss.interface"]
-static mut INTERFACE_TABLE: *mut usize = 0 as *mut usize;
-
 
 
 // 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {
-    unifi_exposure::current_cid(false)
+    lib_so::current_cid(false)
 }
 
 pub fn re_back(cid: usize) {
     let pid = getpid() as usize;
-    unifi_exposure::re_back(cid, pid + 1);
+    lib_so::re_back(cid, pid + 1);
 }
 
 #[linkage = "weak"]
@@ -84,43 +75,3 @@ fn user_interrupt_handler() {
         hang();
     }
 }
-
-
-
-
-// // 异步系统调用
-// pub struct AsyncCall {
-//     call_type: usize,   // 系统调用类型，读 / 写
-//     fd: usize,          // 文件描述符
-//     buffer_ptr: usize,  // 缓冲区指针
-//     buffer_len: usize,  // 缓冲区长度
-//     key: usize,         // 类似于钥匙，读写的协程所拥有的钥匙必须要相同，这样才能够建立正确的对应关系，体现了协作
-//     cnt: usize,         
-// }
-
-// impl AsyncCall {
-//     pub fn new( call_type: usize, fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize) -> Self {
-//         Self { 
-//             call_type, fd, buffer_ptr, buffer_len, key, cnt: 0
-//         }
-//     }
-// }
-
-// impl Future for AsyncCall {
-//     type Output = ();
-
-//     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-//         // submit async task to kernel and return immediately
-//         if self.cnt == 0 {
-//             match self.call_type {
-//                 ASYNC_SYSCALL_READ => async_sys_read(self.fd, self.buffer_ptr, self.buffer_len, self.key, current_cid()),
-//                 ASYNC_SYSCALL_WRITE => async_sys_write(self.fd, self.buffer_ptr, self.buffer_len, self.key),
-//                 _ => {0},
-//             };
-//             self.cnt += 1;
-//             return Poll::Pending;
-//         }
-//         return Poll::Ready(());
-    
-//     }
-// }

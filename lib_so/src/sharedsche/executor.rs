@@ -2,15 +2,14 @@ use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
-use crate::{PRIO_NUM, CoroutineKind};
-use crate::{
-    coroutine::{Coroutine, CoroutineId},
+use super::{
+    coroutine::{Coroutine, CoroutineId, CoroutineKind},
     BitMap,
 };
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
-use crate::config::MAX_THREAD_NUM;
+use crate::config::{MAX_THREAD_NUM, PRIO_NUM};
 
 /// 进程 Executor
 pub struct Executor {

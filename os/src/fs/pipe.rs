@@ -177,7 +177,7 @@ impl File for Pipe {
                     //return read_size;
                 }
                 drop(ring_buffer);
-                crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, unifi_exposure::current_cid(true));
+                crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, lib_so::current_cid(true));
                 helper.as_mut().await;
                 continue;
             }

@@ -2,7 +2,7 @@ use super::{frame_alloc, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
-use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, UNFI_SCHE_BUFFER};
+use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, HEAP_BUFFER};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -244,7 +244,7 @@ impl MemorySet {
             ),
             None,
         );
-        debug!("map unfi_sche buffer: {:#x}", UNFI_SCHE_BUFFER);
+        debug!("map unfi_sche buffer: {:#x}", HEAP_BUFFER);
         let data_section_vir_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
         let bss_section_vir_addr = elf.find_section_by_name(".bss").unwrap().address() as usize;
         error!("bss_section_vir_addr: {:#x}", bss_section_vir_addr);
@@ -254,17 +254,16 @@ impl MemorySet {
         // 另外分配一个物理页，只存放 heap 的虚拟地址
         memory_set.push(
             MapArea::new(
-                UNFI_SCHE_BUFFER.into(),
-                (UNFI_SCHE_BUFFER + PAGE_SIZE).into(),
+                HEAP_BUFFER.into(),
+                (HEAP_BUFFER + PAGE_SIZE).into(),
                 MapType::Framed,
                 MapPermission::R | MapPermission::W | MapPermission::U,
             ),
         None);
-        let unfi_buffer_paddr = translate_writable_va(memory_set.token(), UNFI_SCHE_BUFFER)
+        let unfi_buffer_paddr = translate_writable_va(memory_set.token(), HEAP_BUFFER)
             .unwrap() as *mut usize;
         unsafe { *unfi_buffer_paddr = data_section_vir_addr; }
-        // memory_set.map_unfi_sche_buffer(data_section_phy_addr);
-        debug!("map unfi_sche buffer done");
+        debug!("map heap buffer done");
         unsafe { asm!("fence.i") }
         (
             memory_set,
@@ -509,14 +508,14 @@ impl MemorySet {
         }
         self.push(
             MapArea::new(
-                UNFI_SCHE_BUFFER.into(),
-                (UNFI_SCHE_BUFFER + PAGE_SIZE).into(),
+                HEAP_BUFFER.into(),
+                (HEAP_BUFFER + PAGE_SIZE).into(),
                 MapType::Framed,
                 MapPermission::R | MapPermission::W,
             ),
             None,
         );
-        unsafe{ *(UNFI_SCHE_BUFFER as *mut usize) = sdata as usize; }
+        unsafe{ *(HEAP_BUFFER as *mut usize) = sdata as usize; }
     }
 
     pub fn add_user_module(&mut self, module_space: &MemorySet) {
