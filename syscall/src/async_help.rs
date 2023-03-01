@@ -2,17 +2,17 @@ use core::{future::Future, pin::Pin, task::{Context, Poll}};
 
 
 macro_rules! generate_syscall {
-    ($($name:ident | $async_name:ident;)+) => {
+    ($($name:ident();)+) => {
         $(
             #[macro_export]
             macro_rules! $name {
                 // 同步
                 ($a:expr, $b:expr) => {
-                    $crate::read($a, $b)
+                    $crate::$name($a, $b, usize::MAX, usize::MAX)
                 };
                 // 异步
-                ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr) => {
-                    $crate::$async_name($a, $b, $c, $d, $e);
+                ($a:expr, $b:expr, $c:expr, $d:expr) => {
+                    $crate::$name($a, $b, $c, $d);
                     let async_call = $crate::AsyncCall::new();
                     async_call.await;
                 }
@@ -22,7 +22,7 @@ macro_rules! generate_syscall {
 }
 
 generate_syscall!{
-    read | async_read;
+    read();
 }
 
 // 异步系统调用辅助 future

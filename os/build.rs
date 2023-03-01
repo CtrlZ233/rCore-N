@@ -3,8 +3,6 @@ use std::io::{Result, Write};
 use serde_derive::Deserialize;
 use std::collections::HashMap;
 
-extern crate toml;
-
 fn main() {
     println!("cargo:rerun-if-changed=../user/src/");
     println!("cargo:rerun-if-changed=/src/");

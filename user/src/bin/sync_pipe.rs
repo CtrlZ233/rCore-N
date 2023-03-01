@@ -51,7 +51,7 @@ async fn server(fd1: usize, fd2: usize, key: usize) {
     let mut buffer = [0u8; BUFFER_SIZE];
     // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd1, buffer.as_ptr() as usize, buffer.len(), key - 1);
     // ac_r.await;
-    read(fd1, &mut buffer);
+    read!(fd1, &mut buffer);
     let resp = DATA_S;
     async_write(fd2, resp.as_bytes().as_ptr() as usize, resp.len(), key);
     // println!("server read end");
@@ -63,9 +63,8 @@ async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
     let req = DATA_C;
     async_write(fd1, req.as_bytes().as_ptr() as usize, req.len(), key1);
 
-    let buffer = [0u8; BUFFER_SIZE];
-    let buffer_ptr = buffer.as_ptr() as usize;
-    read!(fd2, buffer_ptr, buffer.len(), key2, current_cid());
+    let mut buffer = [0u8; BUFFER_SIZE];
+    read!(fd2, &mut buffer, key2, current_cid());
     // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
     // ac_r.await;
     // print!("------------------buffer: ");

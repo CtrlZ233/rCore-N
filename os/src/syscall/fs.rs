@@ -35,13 +35,14 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     }
 }
 
-pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
+pub fn sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -> isize {
     if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
         // debug!("sys_read {} {}", fd, len);
     }
     let token = current_user_token();
-    let task = current_process().unwrap();
-    let inner = task.acquire_inner_lock();
+    let process = current_process().unwrap();
+    let pid = process.pid.0;
+    let inner = process.acquire_inner_lock();
     if fd >= inner.fd_table.len() {
         return -1;
     }
@@ -49,13 +50,19 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
         let file = file.clone();
         // release Task lock manually to avoid deadlock
         drop(inner);
-        if let Ok(buffers) = translated_byte_buffer(token, buf, len) {
-            match file.read(UserBuffer::new(buffers)) {
-                Ok(read_len) => read_len as isize,
-                Err(_) => -2,
+        if key == usize::MAX && cid == usize::MAX {
+            if let Ok(buffers) = translated_byte_buffer(token, buf, len) {
+                match file.read(UserBuffer::new(buffers)) {
+                    Ok(read_len) => read_len as isize,
+                    Err(_) => -2,
+                }
+            } else {
+                -3
             }
         } else {
-            -3
+            let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
+            lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
+            0
         }
     } else {
         -4

@@ -28,8 +28,8 @@ pub fn pipe(pipe: &mut [usize]) -> isize {
     sys_pipe(pipe.as_mut_ptr() as usize)
 }
 
-pub fn read(fd: usize, buffer: &mut [u8]) -> isize {
-    sys_read(fd, buffer.as_mut_ptr() as usize, buffer.len())
+pub fn read(fd: usize, buffer: &mut [u8], key: usize, cid: usize) -> isize {
+    sys_read(fd, buffer.as_mut_ptr() as usize, buffer.len(), key, cid)
 }
 
 pub fn write(fd: usize, buffer: &[u8]) -> isize {

@@ -36,26 +36,3 @@ pub fn async_sys_write(fd: usize, buf: *const u8, len: usize, key: usize) -> isi
     // error!("async_sys_write done");
     0
 }
-
-pub fn async_sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -> isize {
-    debug!("async_sys_read do nothing");
-    let token = current_user_token();
-    let process = current_process().unwrap();
-    let pid = process.pid.0;
-    // let task = current_task().unwrap();
-    // let inner = task.acquire_inner_lock();
-    let inner = process.acquire_inner_lock();
-    if fd >= inner.fd_table.len() {
-        return -1;
-    }
-    if let Some(file) = &inner.fd_table[fd] {
-        let file = file.clone();
-        // release Task lock manually to avoid deadlock
-        drop(inner);
-        let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
-        lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
-        0
-    } else {
-        -1
-    }    
-}

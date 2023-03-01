@@ -22,7 +22,7 @@ pub enum SyscallId{
     Close = 57,
     #[arguments(args = "pipe_ptr")]
     Pipe = 59,
-    #[arguments(args = "fd, buffer_ptr, buffer_len")]
+    #[arguments(args = "fd, buffer_ptr, buffer_len, key, cid")]
 	Read = 63,
     #[arguments(args = "fd, buffer_ptr, buffer_len")]
     Write = 64,

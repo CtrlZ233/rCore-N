@@ -30,9 +30,8 @@ pub const BUFFER_SIZE: usize = 80;
 // 服务端接收用户端的请求，从管道中读取内容
 async fn server_read(fd: usize, key: usize) {
     println!("server read start, cid: {}", current_cid());
-    let buffer = [0u8; BUFFER_SIZE];
-    let buffer_ptr = buffer.as_ptr() as usize;
-    read!(fd, buffer_ptr, buffer.len(), key, current_cid());
+    let mut buffer = [0u8; BUFFER_SIZE];
+    read!(fd, &mut buffer, key, current_cid());
     print!("buffer: ");
     for c in buffer {
         if c != 0 {

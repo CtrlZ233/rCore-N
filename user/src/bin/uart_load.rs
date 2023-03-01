@@ -14,7 +14,7 @@ use rand_xorshift::XorShiftRng;
 use riscv::register::uie;
 use spin::Mutex;
 use user_lib::{
-    claim_ext_int, get_time, init_user_trap, read, set_ext_int_enable, set_timer, sleep,
+    claim_ext_int, get_time, init_user_trap, set_ext_int_enable, set_timer, sleep,
     trap::{get_context, hart_id, Plic},
     user_uart::*,
     write, yield_,
@@ -105,7 +105,7 @@ fn kernel_driver_test() -> (usize, usize, usize) {
     // }
     let mut tx_buf = [0u8; HALF_FIFO_DEPTH * 5];
     let mut rx_buf = [0u8; HALF_FIFO_DEPTH * 5];
-    while read(rx_fd, &mut rx_buf) > 0 {}
+    while read!(rx_fd, &mut rx_buf) > 0 {}
     sleep(20);
     let time_us = get_time() * 1000;
     set_timer(time_us + TEST_TIME_US);
@@ -120,7 +120,7 @@ fn kernel_driver_test() -> (usize, usize, usize) {
             tx_count += tx_fifo_count as usize;
         }
 
-        let rx_fifo_count = read(rx_fd, &mut rx_buf);
+        let rx_fifo_count = read!(rx_fd, &mut rx_buf);
         if rx_fifo_count > 0 {
             for rx_val in &rx_buf[0..rx_fifo_count as usize] {
                 let mut max_shift = MAX_SHIFT;
