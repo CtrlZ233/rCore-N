@@ -26,7 +26,7 @@ pub fn syscall_macro_derive(input: TokenStream) -> TokenStream {
             let before = ident_item.to_string();
             let mut fn_name_str = re.replace_all(before.as_str(), r"_$up").to_lowercase();
             fn_name_str.insert_str(0, "sys");
-            println!("{}", fn_name_str);
+            // println!("{}", fn_name_str);
             let ident_name = syn::Ident::new(fn_name_str.as_str(), Span::call_site());
             if let Ok(args) = Arguments::from_attributes(&variant.attrs) {
                 // 获取属性中定义的参数信息
@@ -128,7 +128,7 @@ pub fn syscall_trait_derive(input: TokenStream) -> TokenStream {
             let before = ident_item.to_string();
             let mut fn_name_str = re.replace_all(before.as_str(), r"_$up").to_lowercase();
             fn_name_str.insert_str(0, "sys");
-            println!("{}", fn_name_str);
+            // println!("{}", fn_name_str);
             let ident_name = syn::Ident::new(fn_name_str.as_str(), Span::call_site());
             if let Ok(args) = Arguments::from_attributes(&variant.attrs) {
                 // 获取属性中定义的参数信息
