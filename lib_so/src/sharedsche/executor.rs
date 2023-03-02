@@ -2,15 +2,14 @@ use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
-use crate::PRIO_NUM;
-use crate::{
-    coroutine::{Coroutine, CoroutineId},
+use super::{
+    coroutine::{Coroutine, CoroutineId, CoroutineKind},
     BitMap,
 };
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
-use crate::config::MAX_THREAD_NUM;
+use crate::config::{MAX_THREAD_NUM, PRIO_NUM};
 
 /// 进程 Executor
 pub struct Executor {
@@ -62,8 +61,8 @@ impl Executor {
         self.priority = self.bitmap.get_priority();
     }
     /// 添加协程
-    pub fn add_coroutine(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize){
-        let task = Coroutine::new(future, prio);
+    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind){
+        let task = Coroutine::new(future, prio, kind);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
         self.ready_queue[prio].push_back(cid);
@@ -74,6 +73,7 @@ impl Executor {
         }
         drop(lock);
     }
+    
     /// 判断是否还有协程
     pub fn is_empty(&self) -> bool {
         self.tasks.is_empty()
@@ -100,13 +100,14 @@ impl Executor {
     }
     /// 阻塞协程重新入队
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
-        let _lock = self.wr_lock.lock();
+        let lock = self.wr_lock.lock();
         let prio = self.tasks.get(&cid).unwrap().inner.lock().prio;
         self.ready_queue[prio].push_back(cid);
         self.bitmap.update(prio, true);
         if prio < self.priority {
             self.priority = prio;
         }
+        drop(lock);
         self.priority
     }
     /// 删除协程，协程已经被执行完了，在 fetch 取出 id 是就已经更新位图了，因此，这时不需要更新位图

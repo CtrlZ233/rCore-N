@@ -1,6 +1,9 @@
-initproc
-unifi-sche
-test_condvar
-async_pipe
-threads
-threads_arg
+[usercases]
+cases = [
+    "initproc",
+    "sharedscheduler",
+    "test_condvar",
+    "async_pipe",
+    "threads",
+    "threads_arg",
+]

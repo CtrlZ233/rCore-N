@@ -5,7 +5,7 @@ use core::{
     ptr::NonNull,
 };
 use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
-use unifi_exposure::Executor;
+use lib_so::Executor;
 use spin::Mutex;
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
@@ -45,7 +45,7 @@ pub fn init_heap() {
     // error!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
     // error!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
     unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); unifi_exposure::PRIO_NUM];
+        EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
     }
 }
 

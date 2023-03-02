@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 bitflags = "1.2.1"
-customizable-buddy = "0.0.2"
 buddy_system_allocator = "0.6"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 riscv = { git = "https://github.com/duskmoon314/riscv", branch = "extN", features = [
@@ -27,8 +26,8 @@ heapless = "0.7.5"
 blake2 = { version = "0.10", default-features = false }
 blake3 = { version = "1.2.0", default-features = false }
 sha2 = { version = "0.10", default-features = false }
-unifi-exposure = { path = "../unifi-exposure" }
-syscall = { path = "../syscall", features = ["user"] }
+lib_so = { path = "../lib_so" }
+syscall = { path = "../syscall" }
 
 [features]
 board_qemu = ["uart8250"]

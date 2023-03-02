@@ -5,7 +5,6 @@
 extern crate user_lib;
 extern crate alloc;
 
-use core::ptr::null;
 use core::sync::atomic::{AtomicIsize, Ordering};
 use riscv::register::uie;
 use user_lib::{exit, get_time, init_user_trap, send_msg, set_timer, spawn, yield_, UserTrapContext, UserTrapQueue, fork, exec};

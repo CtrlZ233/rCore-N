@@ -1,16 +1,10 @@
-use alloc::{alloc::handle_alloc_error, vec, collections::VecDeque};
-use alloc::collections::BTreeMap;
+use alloc::{vec, collections::VecDeque};
 use core::{
     alloc::{GlobalAlloc, Layout},
-    ptr::NonNull,
 };
-use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
-use unifi_exposure::Executor;
-use spin::Mutex;
+use lib_so::Executor;
 use buddy_system_allocator::LockedHeap;
 
-
-pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
 #[no_mangle]
 #[link_section = ".data.heap"]
 pub static mut HEAP: LockedHeap = LockedHeap::empty();
@@ -41,7 +35,7 @@ pub fn init() {
         // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
     }
     unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); unifi_exposure::PRIO_NUM];
+        EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
     }
 }
 

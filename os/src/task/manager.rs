@@ -1,7 +1,7 @@
 use super::TaskControlBlock;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use unifi_exposure::max_prio_pid;
+use lib_so::max_prio_pid;
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,

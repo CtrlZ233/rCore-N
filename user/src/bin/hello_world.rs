@@ -6,9 +6,7 @@ extern crate user_lib;
 extern crate alloc;
 
 use core::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use riscv::register::{uie, utvec};
-use riscv::register::mtvec::TrapMode;
-use user_lib::{exit, get_time, getpid, init_user_trap, set_timer, sleep};
+use user_lib::{get_time, getpid, init_user_trap, set_timer, sleep};
 static IS_TIMEOUT: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]

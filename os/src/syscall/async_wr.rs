@@ -31,31 +31,8 @@ pub fn async_sys_write(fd: usize, buf: *const u8, len: usize, key: usize) -> isi
     // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
     if let Some(kernel_cid) = WRMAP.lock().remove(&async_key) {
         debug!("kernel_cid {}", kernel_cid);
-        unifi_exposure::re_back(kernel_cid, 0);
+        lib_so::re_back(kernel_cid, 0);
     }
     // error!("async_sys_write done");
     0
-}
-
-pub fn async_sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -> isize {
-    debug!("async_sys_read do nothing");
-    let token = current_user_token();
-    let process = current_process().unwrap();
-    let pid = process.pid.0;
-    // let task = current_task().unwrap();
-    // let inner = task.acquire_inner_lock();
-    let inner = process.acquire_inner_lock();
-    if fd >= inner.fd_table.len() {
-        return -1;
-    }
-    if let Some(file) = &inner.fd_table[fd] {
-        let file = file.clone();
-        // release Task lock manually to avoid deadlock
-        drop(inner);
-        let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
-        unifi_exposure::add_coroutine(work, 0, 0);
-        0
-    } else {
-        -1
-    }    
 }

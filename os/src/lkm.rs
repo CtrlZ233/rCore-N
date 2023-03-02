@@ -7,7 +7,7 @@ use core::mem::transmute;
 use alloc::boxed::Box;
 
 lazy_static! {
-    pub static ref UNFI_SCHE_DATA: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("unifi-sche").unwrap().to_vec());
+    pub static ref UNFI_SCHE_DATA: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("sharedscheduler").unwrap().to_vec());
     pub static ref UNFI_SCHE_MEMORYSET: MemorySet = MemorySet::from_module(
         UNFI_SCHE_DATA.as_slice()
     );    
@@ -31,19 +31,16 @@ fn add_lkm_image(){
     unsafe {
         let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
         INTERFACE_TABLE = unfi_sche_start() as *mut usize;
+        lib_so::init_sharedsche(INTERFACE_TABLE as usize);
+        debug!("unfi init done {:#x}", INTERFACE_TABLE as usize);
     }
-    unifi_exposure::init_unifi_sche(unsafe { INTERFACE_TABLE as usize });
-    unifi_exposure::add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0, 0);
-    unifi_exposure::add_coroutine(Box::pin(async{ error!("add_coroutine"); }), 0, 0);
-    debug!("unfi init done");
 
 }
 
 pub const UNFI_SCHE_START: usize = 0x96000000usize;
 
-// 共享调度器的模块接口表指针
-#[no_mangle]
 pub static mut INTERFACE_TABLE: *mut usize = 0 as *mut usize;
+
 
 
 

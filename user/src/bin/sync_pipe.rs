@@ -4,7 +4,6 @@
 extern crate alloc;
 extern crate user_lib;
 use user_lib::*;
-use alloc::boxed::Box;
 pub const PAIR_NUM: usize = 256;              //
 pub const MAX_LEN: usize = 1;            //
 // pub const REQUEST: &str = "test";
@@ -24,22 +23,22 @@ pub fn main() -> i32 {
         init_res, pid, end - start
     );
     let mut key: usize = 1;
-    for i in 0..PAIR_NUM {
+    for _i in 0..PAIR_NUM {
         // 先创建一个管道，客户端先写请求
         let mut fd1 = [0usize; 2];
         pipe(&mut fd1);
         let first_write = fd1[1];
         let mut readi = fd1[0];
         let first_key = key;
-        for j in 0..MAX_LEN - 1 {
+        for _j in 0..MAX_LEN - 1 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            add_coroutine(Box::pin(server(readi, writei, key + 1)), 1);
+            lib_so::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
             readi = fd2[0];
             key += 1;
         }
-        add_coroutine(Box::pin(client(first_write, readi, first_key, key)), 0);
+        lib_so::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
         key += 2;
     }
     0
@@ -52,7 +51,7 @@ async fn server(fd1: usize, fd2: usize, key: usize) {
     let mut buffer = [0u8; BUFFER_SIZE];
     // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd1, buffer.as_ptr() as usize, buffer.len(), key - 1);
     // ac_r.await;
-    read(fd1, &mut buffer);
+    read!(fd1, &mut buffer);
     let resp = DATA_S;
     async_write(fd2, resp.as_bytes().as_ptr() as usize, resp.len(), key);
     // println!("server read end");
@@ -64,9 +63,8 @@ async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
     let req = DATA_C;
     async_write(fd1, req.as_bytes().as_ptr() as usize, req.len(), key1);
 
-    let buffer = [0u8; BUFFER_SIZE];
-    let buffer_ptr = buffer.as_ptr() as usize;
-    read!(ASYNC_SYSCALL_READ, fd2, buffer_ptr, buffer.len(), key2, current_cid());
+    let mut buffer = [0u8; BUFFER_SIZE];
+    read!(fd2, &mut buffer, key2, current_cid());
     // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
     // ac_r.await;
     // print!("------------------buffer: ");

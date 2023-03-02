@@ -49,13 +49,13 @@ use sync::*;
 pub use crate::syscall::thread::{sys_gettid, sys_thread_create, sys_waittid};
 pub use async_wr::{WRMAP, AsyncKey};
 
-pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
+pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
     push_trace(TRACE_SYSCALL_ENTER + syscall_id);
     let ret = match syscall_id {
         SYSCALL_CLOSE => sys_close(args[0]),
         SYSCALL_PIPE => sys_pipe(args[0] as *mut usize),
-        SYSCALL_READ => sys_read(args[0], args[1] as *const u8, args[2]),
+        SYSCALL_READ => sys_read(args[0], args[1] as *const u8, args[2], args[3], args[4]),
         SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
         SYSCALL_EXIT => sys_exit(args[0] as i32),
         SYSCALL_YIELD => sys_yield(),
@@ -86,6 +86,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_CONDVAR_CREATE => sys_condvar_create(args[0]),
         SYSCALL_CONDVAR_SIGNAL => sys_condvar_signal(args[0]),
         SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args[0], args[1]),
+        ASYNC_SYSCALL_WRITE => async_sys_write(args[0], args[1] as *const u8, args[2], args[3]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
     push_trace(TRACE_SYSCALL_EXIT + syscall_id);
@@ -96,12 +97,4 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
 use async_wr::*;
 use crate::syscall::thread::sys_hang;
 
-pub const ASYNC_SYSCALL_READ: usize = 2501;
 pub const ASYNC_SYSCALL_WRITE: usize = 2502;
-pub fn syscall6(syscall_id: usize, args: [usize; 6]) -> isize {
-    match syscall_id {
-        ASYNC_SYSCALL_READ => async_sys_read(args[0], args[1] as *const u8, args[2], args[3], args[4]),
-        ASYNC_SYSCALL_WRITE => async_sys_write(args[0], args[1] as *const u8, args[2], args[3]),
-        _ => panic!("Unsupported syscall_id: {}", syscall_id),
-    }
-}

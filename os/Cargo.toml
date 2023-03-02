@@ -25,7 +25,7 @@ embedded-hal = "=1.0.0-alpha.4"
 nb = "1.0.0"
 array-init = "2.0.0"
 heapless = "0.7.5"
-unifi-exposure = { path = "../unifi-exposure" }
+lib_so = { path = "../lib_so" }
 
 
 [features]
@@ -33,4 +33,10 @@ board_qemu = ["uart8250"]
 board_lrv = ["uart_xilinx"]
 
 default = ["board_qemu"]
+
+[build-dependencies]
+serde_derive = "1.0"
+serde = "1.0"
+toml = "0.5.9"
+
 
