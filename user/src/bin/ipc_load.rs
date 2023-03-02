@@ -14,10 +14,10 @@ use rand_xorshift::XorShiftRng;
 use riscv::register::uie;
 use spin::Mutex;
 use user_lib::{
-    claim_ext_int, get_time, init_user_trap, mailread, mailwrite, send_msg, set_ext_int_enable,
-    set_timer, sleep,
+    claim_ext_int, get_time, init_user_trap, mailread, mailwrite, send_msg, set_ext_int_enable, sleep,
     trap::{get_context, hart_id, Plic},
 };
+use syscall::set_timer;
 
 static DST_PID: AtomicUsize = AtomicUsize::new(0);
 static IS_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -95,7 +95,7 @@ fn sendmsg_test() -> (usize, usize, usize) {
     let mut rx_count = 0;
 
     let time_us = get_time() * 1000;
-    set_timer(time_us + TEST_TIME_US);
+    set_timer!(time_us + TEST_TIME_US);
 
     while !(IS_TIMEOUT.load(Relaxed)) {
         for _ in 0..BUFFER_SIZE {
@@ -144,7 +144,7 @@ fn mailbox_test() -> (usize, usize, usize) {
     let mut rx_buf = [0u8; BUFFER_SIZE];
     while mailread(&mut rx_buf) > 0 {}
     let time_us = get_time() * 1000;
-    set_timer(time_us + TEST_TIME_US);
+    set_timer!(time_us + TEST_TIME_US);
     while !(IS_TIMEOUT.load(Relaxed)) {
         for i in 0..BUFFER_SIZE {
             tx_buf[i] = next_tx as u8;
@@ -195,7 +195,7 @@ fn uintc_test() -> (usize, usize, usize) {
     let mut next_tx = tx_rng.next_u32();
     let mut expect_rx = rx_rng.next_u32();
     let time_us = get_time() * 1000;
-    set_timer(time_us + TEST_TIME_US);
+    set_timer!(time_us + TEST_TIME_US);
 
     unsafe {
         uie::set_uext();

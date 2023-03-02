@@ -26,6 +26,14 @@ impl TaskPool {
         self.scheduler.add(task);
     }
 
+    pub fn add_user_intr_task(&mut self, pid: usize) {
+        self.scheduler.add_user_intr_task(pid);
+    }
+
+    pub fn remove_uintr_task(&mut self, pid: usize) {
+        self.scheduler.remove_uintr_task(pid);
+    }
+
     #[allow(unused)]
     pub fn remove(&mut self, task: Arc<TaskControlBlock>) {
         self.scheduler.remove(&task);
@@ -55,6 +63,14 @@ impl TaskPool {
 
 pub fn add_task(task: Arc<TaskControlBlock>) {
     TASK_POOL.lock().add(task);
+}
+
+pub fn add_user_intr_task(pid: usize) {
+    TASK_POOL.lock().add_user_intr_task(pid);
+}
+
+pub fn remove_uintr_task(pid: usize) {
+    TASK_POOL.lock().remove_uintr_task(pid);
 }
 
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {

@@ -70,7 +70,7 @@ pub fn get_time() -> isize {
 pub fn get_time_us() -> isize {
     let time = TimeVal::new();
     match sys_get_time(&time as *const _ as usize, 0) {
-        0 => ((time.sec & 0xffff) * 1000_0000 + time.usec) as isize,
+        0 => ((time.sec & 0xffff) * 1000_000 + time.usec) as isize,
         _ => -1,
     }
 }
@@ -142,8 +142,18 @@ pub fn send_msg(pid: usize, msg: usize) -> isize {
     sys_send_msg(pid, msg)
 }
 
-pub fn set_timer(time_us: isize) -> isize {
-    sys_set_timer(time_us as usize)
+pub fn set_timer(time_us: isize, cid: usize) -> isize {
+    sys_set_timer(time_us as usize, cid)
+}
+
+#[macro_export]
+macro_rules! set_timer {
+    ($a: expr) => {
+        set_timer($a, usize::MAX)
+    };
+    ($a: expr, $b: expr) => {
+        set_timer($a, $b)
+    };
 }
 
 pub fn claim_ext_int(device_id: usize) -> isize {
@@ -232,6 +242,6 @@ pub fn async_read(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize, c
     sys_async_read(fd, buffer_ptr, buffer_len, key, cid)
 }
 
-pub fn async_write(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize) -> isize {
-    sys_async_write(fd, buffer_ptr, buffer_len, key)
+pub fn async_write(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize, pid: usize) -> isize {
+    sys_async_write(fd, buffer_ptr, buffer_len, key, pid)
 }

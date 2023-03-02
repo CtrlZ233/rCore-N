@@ -49,6 +49,8 @@ pub const POLL_KERNEL_FUTURE: usize = 3;
 pub const RE_BACK: usize            = 4;
 pub const CURRENT_CID: usize        = 5;
 pub const REPRIO: usize             = 6;
+pub const ADD_VIRTUAL_CORE: usize   = 7;
+pub const UPDATE_PRIO: usize        = 8;
 
 /// 共享调度器暴露的接口
 /// usize 表示暴露出的函数接口表的地址
@@ -112,14 +114,30 @@ pub fn reprio(cid: usize, prio: usize) {
 }
 
 /// 添加协程
-pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind) 
+pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind)-> usize
 where 
     F: FnOnce() -> T,
     T: Future<Output=()> + 'static + Send + Sync
 {
     unsafe {
-        let spawn_fn: fn(Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, usize, usize, CoroutineKind) = 
+        let spawn_fn: fn(Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, usize, usize, CoroutineKind) -> usize = 
             core::mem::transmute(*INTERFACE_TABLE.add(ADD_COROUTINE));
-            spawn_fn(Box::pin(f()), prio, pid, kind);
+            spawn_fn(Box::pin(f()), prio, pid, kind)
+    }
+}
+
+/// 申请新的虚拟CPU
+pub fn add_virtual_core() {
+    unsafe {
+        let add_virtual_core_fn: fn() = core::mem::transmute(*INTERFACE_TABLE.add(ADD_VIRTUAL_CORE));
+        add_virtual_core_fn();
+    }
+}
+
+/// 更新全局优先级
+pub fn update_prio(pid: usize, prio: usize) {
+    unsafe {
+        let update_prio_fn: fn(usize, usize) = core::mem::transmute(*INTERFACE_TABLE.add(UPDATE_PRIO));
+        update_prio_fn(pid, prio);
     }
 }

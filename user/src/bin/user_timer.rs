@@ -8,7 +8,8 @@ extern crate alloc;
 use core::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use alloc::vec;
 use riscv::register::uie;
-use user_lib::{exit, get_time, getpid, init_user_trap, set_timer, sleep, thread_create, waittid};
+use user_lib::{exit, get_time, getpid, init_user_trap, sleep, thread_create, waittid};
+use syscall::set_timer;
 static IS_TIMEOUT: AtomicBool = AtomicBool::new(false);
 
 static TIME_PER_INTERRUPT: usize = 100_000;
@@ -28,7 +29,7 @@ impl Timer {
         let mut cur = get_time() * 1000;
         let target_time = cur + self.time as isize;
         while cur < target_time {
-            set_timer(cur + TIME_PER_INTERRUPT as isize);
+            set_timer!(cur + TIME_PER_INTERRUPT as isize);
             while !IS_TIMEOUT.load(Relaxed) {}
             cur += TIME_PER_INTERRUPT as isize;
             IS_TIMEOUT.store(false, Relaxed);
