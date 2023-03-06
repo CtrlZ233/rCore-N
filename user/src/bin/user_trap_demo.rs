@@ -7,8 +7,8 @@ extern crate alloc;
 
 use core::sync::atomic::{AtomicIsize, Ordering};
 use riscv::register::uie;
-use user_lib::{exit, get_time, init_user_trap, send_msg, set_timer, spawn, yield_, UserTrapContext, UserTrapQueue, fork, exec};
-
+use user_lib::{exit, get_time, init_user_trap, send_msg, spawn, yield_, UserTrapContext, UserTrapQueue, fork, exec};
+use syscall::set_timer;
 static PID: AtomicIsize = AtomicIsize::new(0);
 
 #[no_mangle]
@@ -20,7 +20,7 @@ pub fn main() -> i32 {
         init_user_trap();
         let time_us = get_time() * 1000;
         for i in 1..=10 {
-            set_timer(time_us + i * 1000_000);
+            set_timer!(time_us + i * 1000_000);
         }
         unsafe {
             uie::set_uext();

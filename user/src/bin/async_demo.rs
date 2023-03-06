@@ -46,7 +46,7 @@ async fn server_read(fd: usize, key: usize) {
 async fn client_write(fd: usize, key: usize) {
     println!("client write start");
     let req = REQUEST;
-    async_write(fd, req.as_bytes().as_ptr() as usize, req.len(), key);
+    async_write(fd, req.as_bytes().as_ptr() as usize, req.len(), key, getpid() as usize);
     println!("client write end");
 }
 

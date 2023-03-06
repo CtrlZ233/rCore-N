@@ -9,6 +9,7 @@ mod lang_items;
 pub mod trace;
 pub mod trap;
 pub mod user_uart;
+pub mod matrix;
 
 extern crate alloc;
 pub use syscall::*;
@@ -47,6 +48,10 @@ pub fn current_cid() -> usize {
 pub fn re_back(cid: usize) {
     let pid = getpid() as usize;
     lib_so::re_back(cid, pid + 1);
+}
+
+pub fn add_virtual_core() {
+    lib_so::add_virtual_core();
 }
 
 #[linkage = "weak"]

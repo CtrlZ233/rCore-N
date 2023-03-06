@@ -73,7 +73,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_FLUSH_TRACE => sys_flush_trace(),
         SYSCALL_INIT_USER_TRAP => sys_init_user_trap(args[0]),
         SYSCALL_SEND_MSG => sys_send_msg(args[0], args[1]),
-        SYSCALL_SET_TIMER => sys_set_timer(args[0]),
+        SYSCALL_SET_TIMER => sys_set_timer(args[0], args[1]),
         SYSCALL_CLAIM_EXT_INT => sys_claim_ext_int(args[0]),
         SYSCALL_SET_EXT_INT_ENABLE => sys_set_ext_int_enable(args[0], args[1]),
         SYSCALL_THREAD_CREATE => sys_thread_create(args[0], args[1]),
@@ -86,7 +86,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_CONDVAR_CREATE => sys_condvar_create(args[0]),
         SYSCALL_CONDVAR_SIGNAL => sys_condvar_signal(args[0]),
         SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args[0], args[1]),
-        ASYNC_SYSCALL_WRITE => async_sys_write(args[0], args[1] as *const u8, args[2], args[3]),
+        ASYNC_SYSCALL_WRITE => async_sys_write(args[0], args[1] as *const u8, args[2], args[3], args[4]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
     push_trace(TRACE_SYSCALL_EXIT + syscall_id);

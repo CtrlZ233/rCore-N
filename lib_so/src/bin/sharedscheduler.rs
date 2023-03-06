@@ -34,6 +34,8 @@ fn main() -> usize{
         INTERFACE[4] = re_back as usize;
         INTERFACE[5] = current_cid as usize;
         INTERFACE[6] = reprio as usize;
+        INTERFACE[7] = add_virtual_core as usize;
+        INTERFACE[8] = update_prio as usize;
         &INTERFACE as *const [usize; 10] as usize
     }
 }
@@ -48,27 +50,13 @@ fn user_entry() {
         // main_addr 表示用户进程 main 函数的地址
         secondary_init(&INTERFACE as *const [usize; 10] as usize);
     }
-    // println!("test test");
-    // 主线程，在这里创建执行协程的线程，之后再进行控制
-    // let mut thread = Thread::new();
-    // thread.execute();
-    let mut wait_tid = vec![];
-    // let max_len = MAX_THREAD_NUM - 2;
-    let max_len = 0;
-    let pid = getpid();
-    if pid != 0 {
-        for _ in 0..max_len {
-            wait_tid.push(thread_create(poll_user_future as usize, 0));
-        }
-    }
-    let start = get_time();
+    // let start = get_time();
 
     poll_user_future();
-    for tid in wait_tid.iter() {
-        waittid(*tid as usize);
-    }
-    let end = get_time();
-    println!("total time: {} ms", end - start);
+    wait_other_cores();
+
+    // let end = get_time();
+    // println!("total time: {} ms", end - start);
     
     exit(0);
 }
@@ -92,9 +80,9 @@ pub fn update_prio(idx: usize, prio: usize) {
 #[inline(never)]
 pub fn max_prio_pid() -> usize {
     let mut ret;
-    let mut pid = 0;
+    let mut pid = 1;
     unsafe {
-        ret = PRIO_ARRAY[0].load(Ordering::Relaxed);
+        ret = PRIO_ARRAY[1].load(Ordering::Relaxed);
     }
     for i in 1..MAX_PROC_NUM {
         unsafe {
@@ -112,11 +100,11 @@ pub fn max_prio_pid() -> usize {
 /// 添加协程，内核和用户态都可以调用
 #[no_mangle]
 #[inline(never)]
-pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) {
+pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) -> usize {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        (*exe).spawn(future, prio, kind);
+        let cid = (*exe).spawn(future, prio, kind);
         // 更新优先级标记
         let prio = (*exe).priority;
         update_prio(pid, prio);
@@ -125,6 +113,7 @@ pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, pr
         // } else {
         //     println!("executor prio {}", prio);
         // }
+        return cid;
     }
 }
 /// 用户程序执行协程
@@ -138,13 +127,10 @@ pub fn poll_user_future() {
         let tid = gettid();
         loop {
             if (*exe).is_empty() {
-                println!("ex is empty");
+                // println!("ex is empty");
                 break;
             }
             let task = (*exe).fetch(tid as usize);
-            // 每次取出协程之后，需要更新优先级标记
-            let prio = (*exe).priority;
-            update_prio(pid + 1, prio);
             match task {
                 Some(task) => {
                     let cid = task.cid;
@@ -155,6 +141,11 @@ pub fn poll_user_future() {
                             (*exe).del_coroutine(cid);
                         }
                     };
+                    {
+                        let _lock = (*exe).wr_lock.lock();
+                        let prio = (*exe).priority;
+                        update_prio(getpid() as usize + 1, prio);
+                    }
                 }
                 _ => {
                     // 任务队列不为空，但就绪队列为空，等待任务唤醒
@@ -260,4 +251,25 @@ pub fn reprio(cid: usize, prio: usize) {
     }
 }
 
+/// 申请虚拟CPU
+#[no_mangle]
+#[inline(never)]
+pub fn add_virtual_core() {
+    unsafe {
+        let heapptr = *(HEAP_BUFFER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        let tid = thread_create(poll_user_future as usize, 0) as usize;
+        (*exe).add_wait_tid(tid);
+    }
+}
 
+
+pub fn wait_other_cores() {
+    unsafe {
+        let heapptr = *(HEAP_BUFFER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        for tid in (*exe).waits.iter() {
+            waittid(*tid);
+        }
+    }
+}

@@ -48,7 +48,7 @@ pub enum SyscallId{
     InitUserTrap = 600,
     #[arguments(args = "pid, msg")]
     SendMsg = 601,
-    #[arguments(args = "time_us")]
+    #[arguments(args = "time_us, cid")]
     SetTimer = 602,
     #[arguments(args = "device_id")]
     ClaimExtInt = 603,
@@ -74,6 +74,6 @@ pub enum SyscallId{
     CondvarWait = 1032,
     #[arguments(args = "fd, buffer_ptr, buffer_len, key, cid")]
     AsyncRead = 2501,
-    #[arguments(args = "fd, buffer_ptr, buffer_len, key")]
+    #[arguments(args = "fd, buffer_ptr, buffer_len, key, pid")]
     AsyncWrite = 2502,
 }

@@ -6,4 +6,7 @@ cases = [
     "async_pipe",
     "threads",
     "threads_arg",
+    "connect_test",
+    "connect_thread_test",
+    "connect_with_prio_test",
 ]

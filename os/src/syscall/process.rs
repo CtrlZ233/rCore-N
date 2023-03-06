@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+use lib_so::update_prio;
 use crate::config::{CPU_NUM, MEMORY_END};
 use crate::loader::get_app_data_by_name;
 use crate::{mm, println};
@@ -66,6 +67,7 @@ pub fn sys_fork() -> isize {
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
+    update_prio(new_pid + 1, 0);
     add_task((*task).clone());
     debug!("new_task {:?} via fork", new_pid);
     new_pid as isize
@@ -191,12 +193,12 @@ pub fn sys_send_msg(pid: usize, msg: usize) -> isize {
     }
 }
 
-pub fn sys_set_timer(time_us: usize) -> isize {
+pub fn sys_set_timer(time_us: usize, cid: usize) -> isize {
     let pid = current_process().unwrap().pid.0;
     use crate::config::CLOCK_FREQ;
     use crate::timer::{set_virtual_timer, USEC_PER_SEC};
     let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
-    set_virtual_timer(time, pid);
+    set_virtual_timer(time, pid, cid);
     0
 }
 

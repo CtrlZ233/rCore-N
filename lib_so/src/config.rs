@@ -11,7 +11,7 @@ pub const HEAP_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
 /// 用户程序入口
 pub const ENTRY: usize = 0x1000;
 /// CPU数量 + 用户态中断处理线程
-pub const MAX_THREAD_NUM: usize = 5;
+pub const MAX_THREAD_NUM: usize = 30;
 
 /// 协程支持的优先级数目
 pub const PRIO_NUM: usize = 8;

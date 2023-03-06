@@ -25,6 +25,8 @@ pub struct Executor {
     pub priority: usize,
     /// 整个 Executor 的读写锁，内核读取 priority 时，可以不获取这个锁，在唤醒协程时，需要获取锁
     pub wr_lock: Mutex<()>,
+    /// 执行器线程id
+    pub waits: Vec<usize>,
 }
 
 impl Executor {
@@ -37,6 +39,7 @@ impl Executor {
             bitmap: BitMap(0),
             priority: PRIO_NUM,
             wr_lock: Mutex::new(()),
+            waits: Vec::new(),
         }
     }
 }
@@ -61,7 +64,7 @@ impl Executor {
         self.priority = self.bitmap.get_priority();
     }
     /// 添加协程
-    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind){
+    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
         let task = Coroutine::new(future, prio, kind);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
@@ -72,6 +75,7 @@ impl Executor {
             self.priority = prio;
         }
         drop(lock);
+        return cid.0;
     }
     
     /// 判断是否还有协程
@@ -98,6 +102,13 @@ impl Executor {
             Some(task)
         }
     }
+
+    /// 增加执行器线程
+    pub fn add_wait_tid(&mut self, tid: usize) {
+        let _lock = self.wr_lock.lock();
+        self.waits.push(tid);
+    }
+
     /// 阻塞协程重新入队
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
         let lock = self.wr_lock.lock();
