@@ -48,6 +48,12 @@ SECTIONS
 
     . = ALIGN(4K);
     ebss = .;
+    svdso = .;
+    .vdso : {
+        *(.vdso .vdso.*)
+    }
+    . = ALIGN(4K);
+    evdso = .;
     ekernel = .;
 
     /DISCARD/ : {

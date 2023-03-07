@@ -27,6 +27,10 @@ SECTIONS
         *(.bss .bss.*)
         *(.sbss .sbss.*)
     }
+    .vdso : {
+        *(.vdso .vdso.*)
+    }
+    
     /DISCARD/ : {
         *(.eh_frame)
         *(.debug*)
