@@ -6,6 +6,7 @@ use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, HEAP_BUFFER};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use lib_so::{vdso_table, get_symbol_addr};
 use core::arch::asm;
 use lazy_static::*;
 use riscv::asm::sfence_vma_all;
@@ -22,6 +23,8 @@ extern "C" {
     fn edata();
     fn sbss_with_stack();
     fn ebss();
+    fn svdso();
+    fn evdso();
     fn ekernel();
     fn strampoline();
 }
@@ -103,6 +106,10 @@ impl MemorySet {
             ".bss [{:#x}, {:#x})",
             sbss_with_stack as usize, ebss as usize
         );
+        debug!(
+            ".vdso [{:#x}, {:#x})",
+            svdso as usize, evdso as usize
+        );
         debug!("mapping .text section");
         memory_set.push(
             MapArea::new(
@@ -138,6 +145,16 @@ impl MemorySet {
             MapArea::new(
                 (sbss_with_stack as usize).into(),
                 (ebss as usize).into(),
+                MapType::Identical,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
+        debug!("mapping .vdso section");
+        memory_set.push(
+            MapArea::new(
+                (svdso as usize).into(),
+                (evdso as usize).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ),
@@ -195,7 +212,7 @@ impl MemorySet {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
-        memory_set.add_user_module(&crate::lkm::UNFI_SCHE_MEMORYSET);
+        memory_set.add_user_module(&crate::lkm::SHARED_SCHE_MEMORYSET);
 
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
@@ -244,13 +261,14 @@ impl MemorySet {
             ),
             None,
         );
-        debug!("map unfi_sche buffer: {:#x}", HEAP_BUFFER);
+        debug!("map sharedscheduler buffer: {:#x}", HEAP_BUFFER);
         let data_section_vir_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
-        let bss_section_vir_addr = elf.find_section_by_name(".bss").unwrap().address() as usize;
-        error!("bss_section_vir_addr: {:#x}", bss_section_vir_addr);
-        let bss_section_paddr = translate_writable_va(memory_set.token(), bss_section_vir_addr)
-            .unwrap() as *mut usize;
-        unsafe { *bss_section_paddr = crate::lkm::INTERFACE_TABLE as usize; }
+        for vdso_item in vdso_table(&elf) {
+            let vdso_item_paddr = translate_writable_va(memory_set.token(), vdso_item.1).unwrap() as *mut usize;
+            let ptr = get_symbol_addr(&crate::lkm::SHARED_ELF, vdso_item.0.to_lowercase().as_str());
+            unsafe { *vdso_item_paddr = ptr; }
+            debug!("get func {} ptr {:#x}", vdso_item.0.to_lowercase(), ptr);
+        }
         // 另外分配一个物理页，只存放 heap 的虚拟地址
         memory_set.push(
             MapArea::new(
@@ -260,9 +278,9 @@ impl MemorySet {
                 MapPermission::R | MapPermission::W | MapPermission::U,
             ),
         None);
-        let unfi_buffer_paddr = translate_writable_va(memory_set.token(), HEAP_BUFFER)
+        let sharedsche_paddr = translate_writable_va(memory_set.token(), HEAP_BUFFER)
             .unwrap() as *mut usize;
-        unsafe { *unfi_buffer_paddr = data_section_vir_addr; }
+        unsafe { *sharedsche_paddr = data_section_vir_addr; }
         debug!("map heap buffer done");
         unsafe { asm!("fence.i") }
         (
@@ -275,7 +293,7 @@ impl MemorySet {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
-        memory_set.add_user_module(&crate::lkm::UNFI_SCHE_MEMORYSET);
+        memory_set.add_user_module(&crate::lkm::SHARED_SCHE_MEMORYSET);
 
         // copy data sections/trap_context/user_stack
         for area in user_space.areas.iter() {

@@ -1,45 +1,45 @@
 use crate::loader::get_app_data_by_name;
 use alloc::vec::Vec;
+use lib_so::{get_symbol_addr, VDSO_SPAWN};
 use crate::mm::{KERNEL_SPACE, MemorySet};
 use lazy_static::*;
 use alloc::sync::Arc;
 use core::mem::transmute;
 use alloc::boxed::Box;
+use xmas_elf::ElfFile;
+
 
 lazy_static! {
-    pub static ref UNFI_SCHE_DATA: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("sharedscheduler").unwrap().to_vec());
-    pub static ref UNFI_SCHE_MEMORYSET: MemorySet = MemorySet::from_module(
-        UNFI_SCHE_DATA.as_slice()
-    );    
+    pub static ref SHARED_SCHE: Arc<Vec<u8>> = Arc::new(get_app_data_by_name("sharedscheduler").unwrap().to_vec());
+    pub static ref SHARED_SCHE_MEMORYSET: MemorySet = MemorySet::from_module(
+        SHARED_SCHE.as_slice()
+    );
+    pub static ref SHARED_ELF: ElfFile<'static> = ElfFile::new(SHARED_SCHE.as_slice()).unwrap();
 }
 
 pub fn init(){
-    // crate::println!("lkm init");
     debug!("lkm init");
     add_lkm_image();
     debug!("lkm init done");
-    // crate::println!("lkm init done");
 }
 
 fn add_lkm_image(){
 
-    KERNEL_SPACE.lock().add_kernel_module(&UNFI_SCHE_MEMORYSET);
+    KERNEL_SPACE.lock().add_kernel_module(&SHARED_SCHE_MEMORYSET);
 
     KERNEL_SPACE.lock().activate();
-    debug!("unfi init");
-    // 执行共享调度器的_start() 函数
-    unsafe {
-        let unfi_sche_start: fn() -> usize = transmute(UNFI_SCHE_START);
-        INTERFACE_TABLE = unfi_sche_start() as *mut usize;
-        lib_so::init_sharedsche(INTERFACE_TABLE as usize);
-        debug!("unfi init done {:#x}", INTERFACE_TABLE as usize);
-    }
-
+    lib_so::init_spawn(get_symbol_addr(&SHARED_ELF, "spawn"));
+    lib_so::init_poll_kernel_future(get_symbol_addr(&SHARED_ELF, "poll_kernel_future"));
+    lib_so::init_re_back(get_symbol_addr(&SHARED_ELF, "re_back"));
+    lib_so::init_current_cid(get_symbol_addr(&SHARED_ELF, "current_cid"));
+    lib_so::init_max_prio_pid(get_symbol_addr(&SHARED_ELF, "max_prio_pid"));
+    lib_so::init_update_prio(get_symbol_addr(&SHARED_ELF, "update_prio"));
 }
 
-pub const UNFI_SCHE_START: usize = 0x96000000usize;
 
-pub static mut INTERFACE_TABLE: *mut usize = 0 as *mut usize;
+
+
+
 
 
 

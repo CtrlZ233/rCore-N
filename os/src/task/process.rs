@@ -1,3 +1,4 @@
+use lib_so::get_symbol_addr;
 use spin::{Mutex, MutexGuard};
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
 use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
@@ -186,7 +187,8 @@ impl ProcessControlBlock {
         drop(task_inner);
         *trap_cx = TrapContext::app_init_context(
             // entry_point,
-            lib_so::user_entry(),
+            // lib_so::user_entry(),
+            get_symbol_addr(&crate::lkm::SHARED_ELF, "user_entry"),
             ustack_top,
             KERNEL_SPACE.lock().token(),
             kstack_top,
@@ -223,7 +225,8 @@ impl ProcessControlBlock {
         let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
-            lib_so::user_entry(),
+            // lib_so::user_entry(),
+            get_symbol_addr(&crate::lkm::SHARED_ELF, "user_entry"),
             user_sp,
             KERNEL_SPACE.lock().token(),
             task.kstack.get_top(),
