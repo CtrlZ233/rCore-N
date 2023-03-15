@@ -268,3 +268,9 @@ impl Iterator for UserBufferIterator {
         }
     }
 }
+
+impl UserBufferIterator {
+    pub fn is_full(&self) -> bool {
+        self.current_buffer >= self.buffers.len()
+    }
+}

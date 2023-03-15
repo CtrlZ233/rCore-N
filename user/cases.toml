@@ -2,7 +2,7 @@
 cases = [
     "initproc",
     "sharedscheduler",
-    "test_condvar",
+    "async_pipe_multi_ring",
     "async_pipe",
     "threads",
     "threads_arg",

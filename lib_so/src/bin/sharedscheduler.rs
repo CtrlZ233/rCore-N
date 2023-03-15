@@ -50,13 +50,13 @@ fn user_entry() {
         // main_addr 表示用户进程 main 函数的地址
         secondary_init(&INTERFACE as *const [usize; 10] as usize);
     }
-    // let start = get_time();
+    let start = get_time();
 
     poll_user_future();
     wait_other_cores();
 
-    // let end = get_time();
-    // println!("total time: {} ms", end - start);
+    let end = get_time();
+    println!("total time: {} ms", end - start);
     
     exit(0);
 }

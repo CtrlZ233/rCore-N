@@ -147,6 +147,10 @@ impl File for Pipe {
                     return Ok(read_size);
                 }
             }
+
+            if buf_iter.is_full() {
+                return Ok(read_size);
+            }
         }
     }
     fn write(&self, buf: UserBuffer) -> Result<usize, isize> {
@@ -180,6 +184,7 @@ impl File for Pipe {
         debug!("pipe write end");
     }
     fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        // debug!("UserBuffer len: {}", buf.len());
         async fn aread_work(s: Pipe, _buf: UserBuffer, tid: usize, pid: usize, key: usize) {
         let mut buf_iter = _buf.into_iter();
         // let mut read_size = 0usize;
@@ -200,18 +205,15 @@ impl File for Pipe {
             }
             debug!("read_size is {}", loop_read);
             // read at most loop_read bytes
-            let mut read_complete = false;
             for _ in 0..loop_read {
                 if let Some(byte_ref) = buf_iter.next() {
                     unsafe { *byte_ref = ring_buffer.read_byte(); }
-                    // read_size += 1;
                 } else {
-                    read_complete = true;
                     break;
-                    //return read_size;
                 }
             }
-            if read_complete {
+            if buf_iter.is_full() {
+                debug!("read complete!");
                 break;
             }
         }
