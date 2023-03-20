@@ -13,7 +13,6 @@ use alloc::vec::Vec;
 use lazy_static::*;
 
 use spin::Mutex;
-use uart8250::Parity::No;
 use switch::__switch2;
 
 pub use context::TaskContext;

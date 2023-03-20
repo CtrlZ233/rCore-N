@@ -26,7 +26,10 @@ impl File for Stdin {
     fn write(&self, _user_buf: UserBuffer) -> Result<usize, isize> {
         panic!("Cannot write to stdin!");
     }
-    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
+        unimplemented!();
+    }
+    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         unimplemented!();
     }
 }
@@ -41,7 +44,10 @@ impl File for Stdout {
         }
         Ok(user_buf.len())
     }
-    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
+        unimplemented!();
+    }
+    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         unimplemented!();
     }
 }

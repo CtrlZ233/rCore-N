@@ -44,7 +44,7 @@ const SERVER_USE_PRIO: usize = 8 - 1;
 
 static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
 
-const SERVER_POLL_THREDS: usize = 1 - 1;
+const SERVER_POLL_THREDS: usize = 2 - 1;
 const CLIENT_POLL_THREDS: usize = 2 - 1;
 
 static mut RECEIVE_BUFFER: Vec<Mutex<usize>> = Vec::new();
@@ -167,7 +167,7 @@ pub fn main() -> i32 {
         unsafe {
             let req = DATA_C;
             for i in 0..MAX_CONNECTION {
-                async_write(CONNECTIONS[i][3],  req.as_bytes().as_ptr() as usize, req.len(), i + MAX_CONNECTION, pid as usize);
+                syscall::write!(CONNECTIONS[i][3],  req.as_bytes(), i + MAX_CONNECTION, pid as usize);
             }
         }
         
@@ -282,7 +282,7 @@ async fn msg_sender(server_fd: usize, key: usize, pid: usize) {
                 }
                 *server_count = server_count.sub(1);
             }
-            async_write(server_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+            syscall::write!(server_fd,  req.as_bytes(), key, pid);
         }
     }
     {
@@ -314,7 +314,7 @@ async fn client_send(client_fd: usize, key: usize, pid: usize) {
                 }
             }
             TIMER_QUEUE[key].lock().push_back(get_time_us() as usize);
-            async_write(client_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+            syscall::write!(client_fd, req.as_bytes(), key, pid);
         }
     }
     // println!("client send close");

@@ -116,7 +116,7 @@ fn kernel_driver_test() -> (usize, usize, usize) {
             hasher.update(&[next_tx as u8]);
             next_tx = tx_rng.next_u32();
         }
-        let tx_fifo_count = write(tx_fd, &tx_buf);
+        let tx_fifo_count = syscall::write!(tx_fd, &tx_buf);
         if tx_fifo_count > 0 {
             tx_count += tx_fifo_count as usize;
         }

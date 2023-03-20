@@ -30,7 +30,7 @@ pub const BUFFER_SIZE: usize = 80;
 // 服务端接收用户端的请求，从管道中读取内容
 async fn server_read(fd: usize, key: usize) {
     println!("server read start, cid: {}", current_cid());
-    let mut buffer = [0u8; BUFFER_SIZE];
+    let mut buffer = [0u8; REQUEST.len()];
     read!(fd, &mut buffer, key, current_cid());
     print!("buffer: ");
     for c in buffer {
@@ -46,7 +46,7 @@ async fn server_read(fd: usize, key: usize) {
 async fn client_write(fd: usize, key: usize) {
     println!("client write start");
     let req = REQUEST;
-    async_write(fd, req.as_bytes().as_ptr() as usize, req.len(), key, getpid() as usize);
+    syscall::write!(fd, req.as_bytes(), key, getpid() as usize);
     println!("client write end");
 }
 

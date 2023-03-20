@@ -5,7 +5,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use proc_macro2::Span;
-use syn::{parse_macro_input, ItemFn, Ident, };
+use syn::{parse_macro_input, ItemFn, Ident};
 use regex::Regex;
 
 #[proc_macro]

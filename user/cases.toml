@@ -3,6 +3,7 @@ cases = [
     "initproc",
     "sharedscheduler",
     "async_pipe_multi_ring",
+    "async_demo",
     "async_pipe",
     "threads",
     "threads_arg",

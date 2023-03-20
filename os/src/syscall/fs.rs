@@ -6,8 +6,26 @@ use crate::{
     mm::{translated_byte_buffer, translated_refmut, UserBuffer},
     // task::find_task,
 };
+use lazy_static::*;
+use alloc::{
+    collections::BTreeMap,
+    sync::Arc
+};
+use spin::Mutex;
 
-pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Ord, Eq)]
+pub struct AsyncKey {
+    pub pid: usize,
+    pub key: usize,
+}
+
+// key -> r_id, write coroutine can use WRMAP to find the corresponding read coroutine id 
+lazy_static! {
+    pub static ref WRMAP: Arc<Mutex<BTreeMap<AsyncKey, usize>>> = Arc::new(Mutex::new(BTreeMap::new()));
+}
+
+
+pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) -> isize {
     if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
         // debug!("sys_write {} {}", fd, len);
     }
@@ -22,13 +40,20 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         let file = file.clone();
         // release Task lock manually to avoid deadlock
         drop(inner);
-        if let Ok(buffers) = translated_byte_buffer(token, buf, len) {
-            match file.write(UserBuffer::new(buffers)) {
-                Ok(write_len) => write_len as isize,
-                Err(_) => -2,
+        if key == usize::MAX {
+            if let Ok(buffers) = translated_byte_buffer(token, buf, len) {
+                match file.write(UserBuffer::new(buffers)) {
+                    Ok(write_len) => write_len as isize,
+                    Err(_) => -2,
+                }
+            } else {
+                -3
             }
         } else {
-            -3
+            
+            let work = file.awrite(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), pid, key);
+            lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
+            0
         }
     } else {
         -4

@@ -6,10 +6,12 @@ extern crate proc_macro;
 use alloc::vec::Vec;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use quote::{quote, ToTokens};
+use syn::{parse_macro_input, DeriveInput, ItemFn, Ident};
 use syscall::Arguments;
 use regex::Regex;
+
+
 
 /// 生成系统调用用户态的接口
 #[proc_macro_derive(GenSysMacro, attributes(arguments))]
@@ -156,3 +158,63 @@ pub fn syscall_trait_derive(input: TokenStream) -> TokenStream {
         }
     ).into()
 }
+
+
+/// 生成同步异步系统调用接口
+#[proc_macro_attribute]
+pub fn async_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input_fn = parse_macro_input!(item as ItemFn);
+    let name = input_fn.sig.ident;
+    let mut sync_args = input_fn.sig.inputs.clone();
+    sync_args.pop();
+    sync_args.pop();
+    let args = input_fn.sig.inputs.to_token_stream();
+    let inner = input_fn.block;
+    let mut args_str = args.to_string();
+    args_str.push(',');
+    let re = Regex::new(r"(?s):[^,]*,").unwrap();
+    let mut args_type_str = re.replace_all(args_str.as_str(), r",").to_string();
+    args_type_str.push(' ');
+    let mut args_value: Vec<_> = args_type_str.split(" , ").collect();
+    args_value.pop();
+    args_value.pop();
+    args_value.pop();
+    // println!("{:?}", args_value);
+    let args_value: Vec<syn::Ident> = args_value.iter().map(|s| Ident::new(*s, Span::call_site())).collect();
+    // println!("{:?}", sync_args.to_token_stream().to_string());
+    // println!("{:?}", args.to_string());
+
+    let mut output = input_fn.sig.output.to_token_stream();
+    if output.is_empty() {
+        output.extend(quote!(-> ()));
+    }
+    let mut async_helper = proc_macro2::TokenStream::default();
+    if let Ok(flag) = attr.to_string().parse::<bool>() {
+        if flag {
+            println!("{:?}", flag);
+            async_helper.extend(quote!(
+                let async_call = $crate::AsyncCall::new();
+                async_call.await;
+            ));
+        }
+    }
+    let derive_macro: TokenStream = quote!(
+        #[inline(always)]
+        pub fn #name(#args) #output #inner
+        #[macro_export]
+        macro_rules! #name {
+            // 同步
+            (#($#args_value: expr),*) => {
+                syscall::#name(#($#args_value),*, usize::MAX, usize::MAX)
+            };
+            // 异步
+            (#($#args_value: expr),*, $key: expr, $cid: expr) => {
+                syscall::#name(#($#args_value),*, $key, $cid);
+                #async_helper
+            }
+        }
+    ).into();
+    // println!("{}", derive_macro.to_string());
+    derive_macro
+}
+

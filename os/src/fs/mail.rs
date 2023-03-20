@@ -96,7 +96,10 @@ impl File for MailBox {
     fn write(&self, _buf: UserBuffer) -> Result<usize, isize> {
         Err(-1)
     }
-    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        unimplemented!();
+    }
+    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
 }
@@ -146,6 +149,9 @@ impl File for Socket {
 
             return Ok(write_size);
         }
+    }
+    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
+        unimplemented!();
     }
     fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         unimplemented!();
