@@ -15,7 +15,7 @@ use alloc::vec;
 use alloc::collections::VecDeque;
 use spin::Mutex;
 use core::ops::{Add, Sub, Mul};
-use rand_core::{RngCore, SeedableRng};
+use rand_core::{RngCore, SeedableRng, le};
 use rand_xorshift::XorShiftRng;
 use user_lib::*;
 use alloc::boxed::Box;
@@ -230,12 +230,12 @@ fn msg_sender(key: usize) {
                 *server_count = server_count.sub(1);
             }
             // println!("[msg_sender] send start");
-            async_write(server_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+            syscall::write!(server_fd,  req.as_bytes(), key, pid);
         }
 
         // 确保 clinet recv可以正常关闭
         sleep(1000);
-        async_write(server_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+        syscall::write!(server_fd,  req.as_bytes(), key, pid);
         // println!("close server_fd: {}", server_fd);
         close(server_fd);
     }
@@ -255,7 +255,7 @@ async fn client_send(client_fd: usize, key: usize, pid: usize) {
             // println!("timer end");
             // let end = get_time_us();
             // println!("time interval: {}", end - start);
-            async_write(client_fd,  req.as_bytes().as_ptr() as usize, req.len(), key, pid);
+            syscall::write!(client_fd,  req.as_bytes(), key, pid);
             // println!("[client_send] send end");
             TIMER_QUEUE[key].lock().push_back(get_time_us() as usize);
         }
@@ -276,8 +276,11 @@ async fn client_recv(client_fd: usize, key: usize) {
             // println!("[client_recv] recv end");
             throughput += 1;
             let cur = get_time_us() as usize;
-            let start = TIMER_QUEUE[key].lock().pop_back().unwrap();
-            REQ_DELAY[key].push(cur - start);
+            if let Some(start) = TIMER_QUEUE[key].lock().pop_back(){
+                REQ_DELAY[key].push(cur - start);
+            }
+            // let start = TIMER_QUEUE[key].lock().pop_back().unwrap();
+            // REQ_DELAY[key].push(cur - start);
         }
     }
     // println!("[client_recv] recv end");
@@ -324,15 +327,17 @@ fn final_statistic() {
     let mut avg = 0;
     let mut sigma = 0;
     let sum: usize = total_delay.iter().sum();
-    avg = sum as isize / (total_delay.len() as isize);
+    if total_delay.len() != 0 {
+        avg = sum as isize / (total_delay.len() as isize);
+    }
     let mut sigma_sum = 0;
     for delay in total_delay.iter() {
         let tmp = (*delay) as isize - avg;
         sigma_sum += tmp * tmp;
     }
-
-    sigma = sigma_sum / (total_delay.len() as isize);
-
+    if total_delay.len() != 0 {
+        sigma = sigma_sum / (total_delay.len() as isize);
+    }
     println!("[total] avg delay: {}, sigma delay: {}", avg, sigma);
 }
 

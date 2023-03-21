@@ -5,6 +5,8 @@
 
 #[macro_use]
 pub mod console;
+#[macro_use]
+extern crate syscall;
 mod lang_items;
 pub mod trace;
 pub mod trap;

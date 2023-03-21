@@ -32,7 +32,7 @@ lib_so = { path = "../lib_so", features = ["kernel"] }
 board_qemu = ["uart8250"]
 board_lrv = ["uart_xilinx"]
 
-default = ["board_qemu"]
+# default = ["board_qemu"]
 
 [build-dependencies]
 serde_derive = "1.0"

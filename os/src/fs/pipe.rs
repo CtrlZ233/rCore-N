@@ -183,55 +183,104 @@ impl File for Pipe {
         }
         debug!("pipe write end");
     }
-    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
-        // debug!("UserBuffer len: {}", buf.len());
-        async fn aread_work(s: Pipe, _buf: UserBuffer, tid: usize, pid: usize, key: usize) {
-        let mut buf_iter = _buf.into_iter();
-        // let mut read_size = 0usize;
-        let mut helper = Box::new(ReadHelper::new());
-        loop {
-            let mut ring_buffer = s.buffer.lock();
-            let loop_read = ring_buffer.available_read();
-            if loop_read == 0 {
-                debug!("read_size is 0");
-                if ring_buffer.all_write_ends_closed() {
-                    break ;
-                    //return read_size;
-                }
-                drop(ring_buffer);
-                crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, lib_so::current_cid(true));
-                helper.as_mut().await;
-                continue;
-            }
-            debug!("read_size is {}", loop_read);
-            // read at most loop_read bytes
-            for _ in 0..loop_read {
-                if let Some(byte_ref) = buf_iter.next() {
-                    unsafe { *byte_ref = ring_buffer.read_byte(); }
-                } else {
-                    break;
-                }
-            }
-            if buf_iter.is_full() {
-                debug!("read complete!");
-                break;
-            }
-        }
-        // 将读协程加入到回调队列中，使得用户态的协程执行器能够唤醒读协程
-        debug!("read pid is {}", pid);
-        debug!("key is {}", key);
-        let _ = push_trap_record(pid, UserTrapRecord {
-            cause: 1,
-            message: tid,
-        });
+    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
+        Box::pin(awrite_work(self.clone(), buf, pid, key))
     }
-    // log::warn!("pipe aread");
-    Box::pin(aread_work(self.clone(), buf, tid, pid, key))
+    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+        // debug!("UserBuffer len: {}", buf.len());
+
+        // log::warn!("pipe aread");
+        Box::pin(aread_work(self.clone(), buf, cid, pid, key))
     }
 }
 
+async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
+    assert!(s.writable);
+    let mut buf_iter = buf.into_iter();
+    let mut write_size = 0usize;
+    let mut helper = Box::new(ReadHelper::new());
+    loop {
 
-use core::{task::{Context, Poll}};
+        let mut ring_buffer = s.buffer.lock();
+        let loop_write = ring_buffer.available_write();
+        if loop_write == 0 {
+            debug!("iter ++");
+            if ring_buffer.all_read_ends_closed() {
+                debug!("pipe readFD closed");
+                break;
+                // return Ok(write_size);
+            }
+            drop(ring_buffer);
+            // suspend_current_and_run_next();
+            helper.as_mut().await;
+            continue;
+        }
+        // write at most loop_write bytes
+        for _ in 0..loop_write {
+            if let Some(byte_ref) = buf_iter.next() {
+                ring_buffer.write_byte(unsafe { *byte_ref });
+                write_size += 1;
+            } else {
+                break;
+                // return Ok(write_size);
+            }
+        }
+        if buf_iter.is_full() {
+            debug!("write complete!");
+            break;
+        }
+    }
+    let async_key = crate::syscall::AsyncKey { pid, key};
+    // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
+    if let Some(kernel_cid) = crate::syscall::WRMAP.lock().remove(&async_key) {
+        // info!("kernel_cid {}", kernel_cid);
+        lib_so::re_back(kernel_cid, 0);
+    }
+    debug!("pipe write end");
+}
+
+async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize) {
+    let mut buf_iter = buf.into_iter();
+    // let mut read_size = 0usize;
+    let mut helper = Box::new(ReadHelper::new());
+    loop {
+        let mut ring_buffer = s.buffer.lock();
+        let loop_read = ring_buffer.available_read();
+        if loop_read == 0 {
+            debug!("read_size is 0");
+            if ring_buffer.all_write_ends_closed() {
+                break ;
+                //return read_size;
+            }
+            drop(ring_buffer);
+            crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, lib_so::current_cid(true));
+            helper.as_mut().await;
+            continue;
+        }
+        debug!("read_size is {}", loop_read);
+        // read at most loop_read bytes
+        for _ in 0..loop_read {
+            if let Some(byte_ref) = buf_iter.next() {
+                unsafe { *byte_ref = ring_buffer.read_byte(); }
+            } else {
+                break;
+            }
+        }
+        if buf_iter.is_full() {
+            debug!("read complete!");
+            break;
+        }
+    }
+    // 将读协程加入到回调队列中，使得用户态的协程执行器能够唤醒读协程
+    debug!("read pid is {}", pid);
+    debug!("key is {}", key);
+    let _ = push_trap_record(pid, UserTrapRecord {
+        cause: 1,
+        message: cid,
+    });
+}
+
+use core::task::{Context, Poll};
 use crate::trap::{push_trap_record, UserTrapRecord};
 
 

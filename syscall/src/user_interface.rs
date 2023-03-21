@@ -1,4 +1,4 @@
-
+use syscall_macro::async_fn;
 use bitflags::bitflags;
 use crate::*;
 
@@ -28,12 +28,14 @@ pub fn pipe(pipe: &mut [usize]) -> isize {
     sys_pipe(pipe.as_mut_ptr() as usize)
 }
 
+#[async_fn(true)]
 pub fn read(fd: usize, buffer: &mut [u8], key: usize, cid: usize) -> isize {
     sys_read(fd, buffer.as_mut_ptr() as usize, buffer.len(), key, cid)
 }
 
-pub fn write(fd: usize, buffer: &[u8]) -> isize {
-    sys_write(fd, buffer.as_ptr() as usize, buffer.len())
+#[async_fn]
+pub fn write(fd: usize, buffer: &[u8], key: usize, cid: usize) -> isize {
+    sys_write(fd, buffer.as_ptr() as usize, buffer.len(), key, cid)
 }
 
 pub fn exit(exit_code: i32) -> ! {
@@ -237,11 +239,6 @@ pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
     sys_condvar_wait(condvar_id, mutex_id);
 }
 
-
-pub fn async_read(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize, cid: usize) -> isize {
-    sys_async_read(fd, buffer_ptr, buffer_len, key, cid)
-}
-
-pub fn async_write(fd: usize, buffer_ptr: usize, buffer_len: usize, key: usize, pid: usize) -> isize {
-    sys_async_write(fd, buffer_ptr, buffer_len, key, pid)
-}
+// pub fn async_write(fd: usize, buffer: &[u8], key: usize, pid: usize) -> isize {
+//     sys_async_write(fd, buffer.as_ptr() as usize, buffer.len(), key, pid)
+// }

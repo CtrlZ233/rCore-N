@@ -2,13 +2,12 @@ use core::fmt::{self, Write};
 
 const STDOUT: usize = 1;
 
-use syscall::write;
 
 struct Stdout;
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        write(STDOUT, s.as_bytes());
+        syscall::write!(STDOUT, s.as_bytes());
         Ok(())
     }
 }

@@ -24,7 +24,7 @@ pub enum SyscallId{
     Pipe = 59,
     #[arguments(args = "fd, buffer_ptr, buffer_len, key, cid")]
 	Read = 63,
-    #[arguments(args = "fd, buffer_ptr, buffer_len")]
+    #[arguments(args = "fd, buffer_ptr, buffer_len, key, cid")]
     Write = 64,
     #[arguments(args = "exit_code")]
     Exit = 93,
@@ -72,8 +72,6 @@ pub enum SyscallId{
     CondvarSignal = 1031,
     #[arguments(args = "condvar_id, mutex_id")]
     CondvarWait = 1032,
-    #[arguments(args = "fd, buffer_ptr, buffer_len, key, cid")]
-    AsyncRead = 2501,
-    #[arguments(args = "fd, buffer_ptr, buffer_len, key, pid")]
-    AsyncWrite = 2502,
+    // #[arguments(args = "fd, buffer_ptr, buffer_len, key, pid")]
+    // AsyncWrite = 2502,
 }

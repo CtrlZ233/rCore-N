@@ -11,7 +11,8 @@ pub use mail::{MailBox, Socket};
 pub trait File: Send + Sync {
     fn read(&self, buf: UserBuffer) -> Result<usize, isize>;
     fn write(&self, buf: UserBuffer) -> Result<usize, isize>;
-    fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>;
+    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>;
+    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>;
 
 }
 
