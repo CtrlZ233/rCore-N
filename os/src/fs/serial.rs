@@ -57,4 +57,12 @@ impl<const N: usize> File for Serial<N> {
     fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         unimplemented!();
     }
+
+    fn readable(&self) -> bool {
+        todo!()
+    }
+
+    fn writable(&self) -> bool {
+        todo!()
+    }
 }

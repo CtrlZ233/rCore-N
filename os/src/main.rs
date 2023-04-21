@@ -27,7 +27,6 @@ mod lang_items;
 mod loader;
 mod logger;
 mod mm;
-mod plic;
 mod sbi;
 mod syscall;
 mod task;
@@ -35,9 +34,12 @@ mod sync;
 mod timer;
 mod trap;
 #[macro_use]
-mod uart;
 mod trace;
 mod lkm;
+mod device;
+mod net;
+
+use device::{plic, uart};
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.asm"));

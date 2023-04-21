@@ -9,6 +9,8 @@ use core::{future::Future, pin::Pin};
 
 pub use mail::{MailBox, Socket};
 pub trait File: Send + Sync {
+    fn readable(&self) -> bool;
+    fn writable(&self) -> bool;
     fn read(&self, buf: UserBuffer) -> Result<usize, isize>;
     fn write(&self, buf: UserBuffer) -> Result<usize, isize>;
     fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>;

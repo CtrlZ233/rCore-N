@@ -1,6 +1,7 @@
 use crate::trace::{push_trace, S_EXT_INTR_ENTER, S_EXT_INTR_EXIT};
 use crate::trap::{push_trap_record, UserTrapRecord, USER_EXT_INT_MAP};
 use crate::uart;
+use crate::net::net_interrupt_handler;
 use rv_plic::{Priority, PLIC};
 
 #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
@@ -27,6 +28,7 @@ pub fn init() {
     Plic::set_priority(13, Priority::lowest());
     Plic::set_priority(14, Priority::lowest());
     Plic::set_priority(15, Priority::lowest());
+    Plic::set_priority(4, Priority::lowest());
 }
 
 #[cfg(feature = "board_lrv")]
@@ -44,6 +46,7 @@ pub fn init_hart(hart_id: usize) {
     Plic::enable(context, 13);
     Plic::enable(context, 14);
     Plic::enable(context, 15);
+    Plic::enable(context, 4);
     Plic::set_threshold(context, Priority::any());
 }
 
@@ -87,9 +90,14 @@ pub fn handle_external_interrupt(hart_id: usize) {
         if !can_user_handle {
             match irq {
                 #[cfg(feature = "board_qemu")]
-                12 | 13 | 14 | 15 => {
-                    uart::handle_interrupt(irq);
-                    trace!("[PLIC] irq {:?} handled by kenel", irq);
+                4 | 12 | 13 | 14 | 15 => {
+                    if irq == 4 {
+                        // net io interrupt
+                        net_interrupt_handler();
+                    } else {
+                        uart::handle_interrupt(irq);
+                        trace!("[PLIC] irq {:?} handled by kenel", irq);
+                    }
                 }
                 #[cfg(feature = "board_lrv")]
                 4 | 5 | 6 | 7 => {

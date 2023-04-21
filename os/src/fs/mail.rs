@@ -102,6 +102,14 @@ impl File for MailBox {
     fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
+
+    fn readable(&self) -> bool {
+        todo!()
+    }
+
+    fn writable(&self) -> bool {
+        todo!()
+    }
 }
 
 pub struct Socket {
@@ -155,6 +163,14 @@ impl File for Socket {
     }
     fn aread(&self, buf: UserBuffer, tid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         unimplemented!();
+    }
+
+    fn readable(&self) -> bool {
+        todo!()
+    }
+
+    fn writable(&self) -> bool {
+        todo!()
     }
 }
 

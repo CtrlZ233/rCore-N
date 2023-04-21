@@ -40,6 +40,7 @@ mod fs;
 mod process;
 mod thread;
 mod sync;
+mod net;
 
 use crate::trace::{push_trace, TRACE_SYSCALL_ENTER, TRACE_SYSCALL_EXIT};
 use fs::*;

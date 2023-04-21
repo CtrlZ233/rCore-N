@@ -32,6 +32,14 @@ impl File for Stdin {
     fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         unimplemented!();
     }
+
+    fn readable(&self) -> bool {
+        true
+    }
+
+    fn writable(&self) -> bool {
+        false
+    }
 }
 
 impl File for Stdout {
@@ -49,6 +57,14 @@ impl File for Stdout {
     }
     fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
         unimplemented!();
+    }
+
+    fn readable(&self) -> bool {
+        false
+    }
+
+    fn writable(&self) -> bool {
+        true
     }
 }
 

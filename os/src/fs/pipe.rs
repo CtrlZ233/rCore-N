@@ -192,6 +192,14 @@ impl File for Pipe {
         // log::warn!("pipe aread");
         Box::pin(aread_work(self.clone(), buf, cid, pid, key))
     }
+
+    fn readable(&self) -> bool {
+        self.readable
+    }
+
+    fn writable(&self) -> bool {
+        self.writable
+    }
 }
 
 async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
