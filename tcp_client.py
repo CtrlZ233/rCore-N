@@ -1,8 +1,10 @@
 import socket
 import time
 import sched
-from threading import Thread
+from threading import Thread, Lock
 
+global_num = 0
+lock = Lock()
 
 def req(socket):
     send_data = "client send data"
@@ -14,22 +16,36 @@ def req(socket):
 
 def loop_monitor(socket):
     s = sched.scheduler(time.time, time.sleep)  # 生成调度器
-    s.enter(1, 1, req, (socket,))
+    s.enter(0.1, 1, req, (socket,))
     s.run()
 
-def connect():
+def connect(index):
+    global global_num
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_addr = ("127.0.0.1", 6201)
     tcp_socket.connect(server_addr)
+    recv_data = tcp_socket.recv(1024)
+    print('recv data: ', recv_data.decode("gbk"))
+    if recv_data.decode("gbk") == "connect ok":
+        print("connect_ok")
+        with lock:
+            global_num += 1
+
+    while True:
+         with lock:
+            if global_num == threads_num:
+                break
     print("connect success!") 
+
     loop_monitor(tcp_socket)
+
 
 
 
 threads = []
 threads_num = 8
 for i in range(threads_num):
-    t = Thread(target=connect)
+    t = Thread(target=connect, args=(i,))
     threads.append(t)
     t.start()
 

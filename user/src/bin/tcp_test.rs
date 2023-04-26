@@ -8,6 +8,9 @@ use user_lib::*;
 use alloc::string::{String, ToString};
 
 fn handle_tcp_client(client_fd: usize) -> bool {
+    let str = "connect ok";
+
+    syscall::write!(client_fd, str.as_bytes());
     let server_times = 20;
     for i in 0..server_times {
         let mut buf = vec![0u8; 1024];
@@ -32,7 +35,7 @@ fn handle_tcp_client(client_fd: usize) -> bool {
 #[no_mangle]
 pub fn main() -> i32 {
     println!("This is a very simple http server");
-    let mut accept_num = 3;
+    let mut accept_num = 8;
     let tcp_fd = listen(80);
     if tcp_fd < 0 {
         println!("Failed to listen on port 80");
@@ -44,7 +47,7 @@ pub fn main() -> i32 {
         println!("client connected: {}", client_fd);
         let tid = thread_create(handle_tcp_client as usize, client_fd as usize) as usize;
         wait_tid.push(tid);
-        // waittid(tid);
+        accept_num -= 1;
     }
     
     for tid in wait_tid.iter() {

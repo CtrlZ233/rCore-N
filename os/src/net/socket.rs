@@ -32,7 +32,9 @@ pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
 
 pub fn set_s_a_by_index(index: usize, seq: u32, ack: u32) {
     let mut socket_table = SOCKET_TABLE.lock();
-
+    if socket_table.len() <= index || socket_table[index].is_none() {
+        return;
+    }
     assert!(socket_table.len() > index);
     assert!(socket_table[index].is_some());
 
@@ -102,7 +104,9 @@ pub fn remove_socket(index: usize) {
 
 pub fn push_data(index: usize, data: Vec<u8>) {
     let mut socket_table = SOCKET_TABLE.lock();
-
+    if socket_table.len() <= index || socket_table[index].is_none() {
+        return;
+    }
     assert!(socket_table.len() > index);
     assert!(socket_table[index].is_some());
 
