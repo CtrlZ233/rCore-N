@@ -7,7 +7,7 @@ use lose_net_stack::TcpFlags;
 use super::socket::{add_socket, pop_data, get_s_a_by_index, remove_socket};
 use super::LOSE_NET_STACK;
 use crate::task::suspend_current_and_run_next;
-use crate::{device::NET_DEVICE, fs::File};
+use crate::{device::NetDevice, fs::File};
 pub struct TCP {
     pub target: IPv4,
     pub sport: u16,
@@ -18,17 +18,26 @@ pub struct TCP {
 }
 
 impl TCP {
-    pub fn new(target: IPv4, sport: u16, dport: u16, seq: u32, ack: u32) -> Self {
-        let index = add_socket(target, sport, dport).expect("can't add socket");
-
-        Self {
-            target,
-            sport,
-            dport,
-            seq,
-            ack,
-            socket_index: index,
+    pub fn new(target: IPv4, sport: u16, dport: u16, seq: u32, ack: u32) -> Option<Self> {
+        match add_socket(target, sport, dport) {
+            Some(index) => {
+                Some(
+                    Self {
+                        target,
+                        sport,
+                        dport,
+                        seq,
+                        ack,
+                        socket_index: index,
+                    }
+                )
+            }
+            _ => {
+                None
+            }
         }
+
+        
     }
 }
 
@@ -60,6 +69,7 @@ impl File for TCP {
                 }
                 return Ok(left);
             } else {
+                // debug!("suspend_current_and_run_next");
                 suspend_current_and_run_next();
             }
         }
@@ -96,7 +106,7 @@ impl File for TCP {
             urg: 0,
             data: data.as_ref(),
         };
-        NET_DEVICE.transmit(&tcp_packet.build_data());
+        NetDevice.transmit(&tcp_packet.build_data());
         Ok(len)
     }
 

@@ -75,30 +75,46 @@ pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
     } else {
         let listen_port = listen_ports[0].as_mut().unwrap();
         let task = listen_port.schedule.clone().unwrap();
-        listen_port.receivable = false;
-        accept_connection(port, tcp_packet, task);
-        add_task(listen_port.schedule.take().unwrap());
-        Some(())
+        
+        if accept_connection(port, tcp_packet, task) {
+            listen_port.receivable = false;
+            add_task(listen_port.schedule.take().unwrap());
+            Some(())
+        } else {
+            None
+        }
+        
+        
     }
 }
 
-pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<TaskControlBlock>) {
+pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<TaskControlBlock>) -> bool {
     let process = task.process.upgrade().unwrap();
     let mut inner = process.acquire_inner_lock();
     let fd = inner.alloc_fd();
-
-    let tcp_socket = TCP::new(
+    debug!("[accept_connection]: local fd: {}, sport: {}, dport: {}", fd, tcp_packet.dest_port, tcp_packet.source_port);
+    match TCP::new(
         tcp_packet.source_ip,
         tcp_packet.dest_port,
         tcp_packet.source_port,
         tcp_packet.seq,
         tcp_packet.ack,
-    );
+    ) {
+        Some(tcp_socket) => {
+            inner.fd_table[fd] = Some(Arc::new(tcp_socket));
+            let cx = task.acquire_inner_lock().get_trap_cx();
+            cx.x[10] = fd;
+            true
+        }
+        _ => {
+            debug!("invaild accept req");
+            false
+        }
+    }
 
-    inner.fd_table[fd] = Some(Arc::new(tcp_socket));
+    
 
-    let cx = task.acquire_inner_lock().get_trap_cx();
-    cx.x[10] = fd;
+   
 }
 
 

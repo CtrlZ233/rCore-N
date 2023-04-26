@@ -242,3 +242,11 @@ pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
 // pub fn async_write(fd: usize, buffer: &[u8], key: usize, pid: usize) -> isize {
 //     sys_async_write(fd, buffer.as_ptr() as usize, buffer.len(), key, pid)
 // }
+
+pub fn listen(port: usize) -> isize {
+    sys_listen(port)
+}
+
+pub fn accept(fd: usize) -> isize {
+    sys_accept(fd)
+}

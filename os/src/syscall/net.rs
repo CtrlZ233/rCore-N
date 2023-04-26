@@ -1,6 +1,6 @@
-use crate::task::{current_process, current_task, current_trap_cx, block_current_and_run_next};
+use crate::task::{current_process, current_task, current_trap_cx, block_current_and_run_next, suspend_current_and_run_next};
 use alloc::sync::Arc;
-use crate::net::{accept, listen, port_acceptable, PortFd, net_interrupt_handler};
+use crate::net::{accept, listen, port_acceptable, PortFd};
 
 // listen a port
 pub fn sys_listen(port: u16) -> isize {
@@ -25,15 +25,18 @@ pub fn sys_accept(port_index: usize) -> isize {
 
     let task = current_task().unwrap();
     accept(port_index, task);
+    // suspend_current_and_run_next();
     block_current_and_run_next();
 
+    // net_interrupt_handler();
     // NOTICE: There does not have interrupt handler, just call it munually.
     loop {
+        
         if !port_acceptable(port_index) {
             break;
         }
     }
-
+    debug!("recived!!!!");
     let cx = current_trap_cx();
     cx.x[10] as isize
 }

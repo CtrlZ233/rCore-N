@@ -39,6 +39,8 @@ mod lkm;
 mod device;
 mod net;
 
+use alloc::vec;
+
 use device::{plic, uart};
 
 global_asm!(include_str!("entry.asm"));
@@ -53,21 +55,25 @@ fn clear_bss() {
 }
 
 #[no_mangle]
-pub fn rust_main(hart_id: usize) -> ! {
+pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
+        
         clear_bss();
         logger::init();
         mm::init();
         debug!("[kernel {}] Hello, world!", hart_id);
+        debug!("device_tree_addr: {:#x}", device_tree_addr);
         mm::remap_test();
         trace::init();
         trace::trace_test();
         trap::init();
+        // device::init_dt(device_tree_addr);
+        device::init();
         plic::init();
         plic::init_hart(hart_id);
         uart::init();
         lkm::init();
-
+        debug!("test end");
         extern "C" {
             fn boot_stack();
             fn boot_stack_top();

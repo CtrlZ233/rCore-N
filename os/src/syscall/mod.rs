@@ -36,6 +36,9 @@ const SYSCALL_CONDVAR_CREATE: usize = 1030;
 const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
 const SYSCALL_CONDVAR_WAIT: usize = 1032;
 
+const SYSCALL_LISTEN: usize = 1200;
+const SYSCALL_ACCEPT: usize = 1201;
+
 mod fs;
 mod process;
 mod thread;
@@ -48,6 +51,7 @@ use process::*;
 use sync::*;
 pub use crate::syscall::thread::{sys_gettid, sys_thread_create, sys_waittid, sys_hang};
 pub use fs::{WRMAP, AsyncKey};
+use net::{sys_accept, sys_listen};
 
 pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
@@ -86,6 +90,8 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_CONDVAR_CREATE => sys_condvar_create(args[0]),
         SYSCALL_CONDVAR_SIGNAL => sys_condvar_signal(args[0]),
         SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args[0], args[1]),
+        SYSCALL_LISTEN => sys_listen(args[0] as u16),
+        SYSCALL_ACCEPT => sys_accept(args[0]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
     push_trace(TRACE_SYSCALL_EXIT + syscall_id);

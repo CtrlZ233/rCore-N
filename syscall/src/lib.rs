@@ -74,4 +74,8 @@ pub enum SyscallId{
     CondvarWait = 1032,
     // #[arguments(args = "fd, buffer_ptr, buffer_len, key, pid")]
     // AsyncWrite = 2502,
+    #[arguments(args = "port")]
+    Listen = 1200,
+    #[arguments(args = "fd")]
+    Accept = 1201,
 }

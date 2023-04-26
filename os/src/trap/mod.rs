@@ -189,6 +189,7 @@ pub fn trap_return() -> ! {
 
 #[no_mangle]
 pub extern "C" fn trap_from_kernel(cx: &mut TrapContext) {
+    debug!("trap_from_kernel");
     let scause = scause::read();
     let stval = stval::read();
     let sepc = sepc::read();
