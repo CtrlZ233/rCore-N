@@ -10,7 +10,6 @@ use alloc::string::{String, ToString};
 fn handle_tcp_client(client_fd: usize) -> bool {
     let str = "connect ok";
 
-    syscall::write!(client_fd, str.as_bytes());
     let server_times = 20;
     for i in 0..server_times {
         let mut buf = vec![0u8; 1024];

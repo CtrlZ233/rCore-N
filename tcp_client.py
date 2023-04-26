@@ -24,17 +24,7 @@ def connect(index):
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_addr = ("127.0.0.1", 6201)
     tcp_socket.connect(server_addr)
-    recv_data = tcp_socket.recv(1024)
-    print('recv data: ', recv_data.decode("gbk"))
-    if recv_data.decode("gbk") == "connect ok":
-        print("connect_ok")
-        with lock:
-            global_num += 1
 
-    while True:
-         with lock:
-            if global_num == threads_num:
-                break
     print("connect success!") 
 
     loop_monitor(tcp_socket)
@@ -43,7 +33,7 @@ def connect(index):
 
 
 threads = []
-threads_num = 8
+threads_num = 4
 for i in range(threads_num):
     t = Thread(target=connect, args=(i,))
     threads.append(t)

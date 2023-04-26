@@ -4,8 +4,11 @@ use lose_net_stack::packets::tcp::TCPPacket;
 use lose_net_stack::IPv4;
 use lose_net_stack::MacAddress;
 use lose_net_stack::TcpFlags;
+use super::socket::block_current;
 use super::socket::{add_socket, pop_data, get_s_a_by_index, remove_socket};
 use super::LOSE_NET_STACK;
+use crate::task::block_current_and_run_next;
+use crate::task::current_task;
 use crate::task::suspend_current_and_run_next;
 use crate::{device::NetDevice, fs::File};
 pub struct TCP {
@@ -69,8 +72,9 @@ impl File for TCP {
                 }
                 return Ok(left);
             } else {
-                // debug!("suspend_current_and_run_next");
-                suspend_current_and_run_next();
+                let current = current_task().unwrap();
+                block_current(current, self.socket_index);
+                block_current_and_run_next();
             }
         }
     }

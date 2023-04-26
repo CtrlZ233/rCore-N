@@ -1,8 +1,11 @@
 use alloc::collections::VecDeque;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use lose_net_stack::IPv4;
 use spin::Mutex;
+
+use crate::task::{TaskControlBlock, add_task};
 
 // TODO: specify the protocol, TCP or UDP
 pub struct Socket {
@@ -12,6 +15,7 @@ pub struct Socket {
     pub buffers: VecDeque<Vec<u8>>, // datas
     pub seq: u32,
     pub ack: u32,
+    pub block_task: Option<Arc<TaskControlBlock>>,
 }
 
 lazy_static! {
@@ -83,6 +87,7 @@ pub fn add_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
         buffers: VecDeque::new(),
         seq: 0,
         ack: 0,
+        block_task: None,
     };
 
     if index == usize::MAX {
@@ -115,6 +120,17 @@ pub fn push_data(index: usize, data: Vec<u8>) {
         .unwrap()
         .buffers
         .push_back(data);
+
+    match socket_table[index].as_mut().unwrap().block_task.take() {
+        Some(task) => {
+            debug!("wake read task");
+            add_task(task);
+        }
+        _ => {
+
+        }
+    }
+
 }
 
 pub fn pop_data(index: usize) -> Option<Vec<u8>> {
@@ -124,4 +140,11 @@ pub fn pop_data(index: usize) -> Option<Vec<u8>> {
     assert!(socket_table[index].is_some());
 
     socket_table[index].as_mut().unwrap().buffers.pop_front()
+}
+
+pub fn block_current(current: Arc<TaskControlBlock>, index: usize) {
+    let mut socket_table = SOCKET_TABLE.lock();
+    assert!(socket_table.len() > index);
+    assert!(socket_table[index].is_some());
+    socket_table[index].as_mut().unwrap().block_task = Some(current);
 }
