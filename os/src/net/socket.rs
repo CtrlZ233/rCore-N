@@ -121,15 +121,15 @@ pub fn push_data(index: usize, data: Vec<u8>) {
         .buffers
         .push_back(data);
 
-    match socket_table[index].as_mut().unwrap().block_task.take() {
-        Some(task) => {
-            debug!("wake read task");
-            add_task(task);
-        }
-        _ => {
+    // match socket_table[index].as_mut().unwrap().block_task.take() {
+    //     Some(task) => {
+    //         debug!("wake read task");
+    //         add_task(task);
+    //     }
+    //     _ => {
 
-        }
-    }
+    //     }
+    // }
 
 }
 

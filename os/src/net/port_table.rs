@@ -71,6 +71,7 @@ pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
             })
             .collect();
     if listen_ports.len() == 0 {
+        debug!("no listen");
         None
     } else {
         let listen_port = listen_ports[0].as_mut().unwrap();

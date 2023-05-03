@@ -59,12 +59,12 @@ pub fn net_interrupt_handler() {
                 }
         
                 Packet::TCP(tcp_packet) => {
-                    debug!("TCP");
+                    
                     let target = tcp_packet.source_ip;
                     let lport = tcp_packet.dest_port;
                     let rport = tcp_packet.source_port;
                     let flags = tcp_packet.flags;
-        
+                    debug!("[TCP] target: {}, lport: {}, rport: {}", target, lport, rport);
                     if flags.contains(TcpFlags::S) {
                         debug!("TCP S");
                         // if it has a port to accept, then response the request
@@ -72,6 +72,8 @@ pub fn net_interrupt_handler() {
                             let mut reply_packet = tcp_packet.ack();
                             reply_packet.flags = TcpFlags::S | TcpFlags::A;
                             NetDevice.transmit(&reply_packet.build_data());
+                        } else {
+                            error!("check accept failed");
                         }
                         NetDevice.recycle_rx_buffer(buf);
                         return;
@@ -93,9 +95,15 @@ pub fn net_interrupt_handler() {
                     }
         
                     if let Some(socket_index) = get_socket(target, lport, rport) {
-                        debug!("push data");
-                        push_data(socket_index, tcp_packet.data.to_vec());
-                        set_s_a_by_index(socket_index, tcp_packet.seq, tcp_packet.ack);
+                        let packet_seq = tcp_packet.seq;
+                        let (ack, _) = get_s_a_by_index(socket_index).unwrap();
+                        debug!("packet_seq: {}, ack: {}", packet_seq, ack);
+                        if ack < packet_seq {
+                            debug!("push data: {}, {}", socket_index, tcp_packet.data_len);
+                            push_data(socket_index, tcp_packet.data.to_vec());
+                            set_s_a_by_index(socket_index, tcp_packet.seq, tcp_packet.ack);
+                        }
+                        
                     }
                 }
                 _ => {

@@ -8,8 +8,11 @@ use user_lib::*;
 use alloc::string::{String, ToString};
 
 fn handle_tcp_client(client_fd: usize) -> bool {
+    println!("start tcp_client");
     let str = "connect ok";
-
+    let mut begin_buf = vec![0u8; 1024];
+    read!(client_fd as usize, &mut begin_buf);
+    syscall::write!(client_fd, str.as_bytes());
     let server_times = 20;
     for i in 0..server_times {
         let mut buf = vec![0u8; 1024];

@@ -24,11 +24,15 @@ pub fn get_context(hart_id: usize, mode: char) -> usize {
 
 #[cfg(feature = "board_qemu")]
 pub fn init() {
+    use crate::task::hart_id;
+
     Plic::set_priority(12, Priority::lowest());
     Plic::set_priority(13, Priority::lowest());
     Plic::set_priority(14, Priority::lowest());
     Plic::set_priority(15, Priority::lowest());
-    Plic::set_priority(8, Priority::lowest());
+    if hart_id() == 0 {
+        Plic::set_priority(8, Priority::lowest());
+    }
 }
 
 #[cfg(feature = "board_lrv")]
@@ -46,7 +50,9 @@ pub fn init_hart(hart_id: usize) {
     Plic::enable(context, 13);
     Plic::enable(context, 14);
     Plic::enable(context, 15);
-    Plic::enable(context, 8);
+    if hart_id == 0 {
+        Plic::enable(context, 8);
+    }
     Plic::set_threshold(context, Priority::any());
 }
 

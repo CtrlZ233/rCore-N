@@ -25,8 +25,20 @@ def connect(index):
     server_addr = ("127.0.0.1", 6201)
     tcp_socket.connect(server_addr)
 
-    print("connect success!") 
+    send_data = "connect ok?"
+    tcp_socket.send(send_data.encode("gbk"))
+    recv_data = tcp_socket.recv(1024)
 
+    print('recv connect result:', recv_data.decode("gbk"))
+    if recv_data.decode("gbk") == "connect ok":
+        with lock:
+            global_num += 1
+
+    while True:
+        with lock:
+            if global_num == threads_num:
+                break
+    print("all threads connect success!")
     loop_monitor(tcp_socket)
 
 

@@ -72,9 +72,10 @@ impl File for TCP {
                 }
                 return Ok(left);
             } else {
-                let current = current_task().unwrap();
-                block_current(current, self.socket_index);
-                block_current_and_run_next();
+                // let current = current_task().unwrap();
+                // block_current(current, self.socket_index);
+                // block_current_and_run_next();
+                suspend_current_and_run_next();
             }
         }
     }
@@ -91,6 +92,7 @@ impl File for TCP {
         }
 
         let len = data.len();
+        debug!("socket send len: {}", len);
 
         // get sock and sequence
         let (ack, seq) = get_s_a_by_index(self.socket_index).map_or((0, 0), |x| x);
