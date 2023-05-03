@@ -1,4 +1,5 @@
 use super::File;
+use crate::fs::ReadHelper;
 use crate::mm::UserBuffer;
 use crate::task::suspend_current_and_run_next;
 use alloc::sync::{Arc, Weak};
@@ -291,25 +292,4 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
 use core::task::{Context, Poll};
 use crate::trap::{push_trap_record, UserTrapRecord};
 
-
-pub struct ReadHelper(usize);
-
-impl ReadHelper {
-    pub fn new() -> Self {
-        Self(0)
-    }
-}
-
-impl Future for ReadHelper {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.0 += 1;
-        if (self.0 & 1) == 1 {
-            return Poll::Pending;
-        } else {
-            return Poll::Ready(());
-        }
-    }
-}
 

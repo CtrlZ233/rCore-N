@@ -1,16 +1,22 @@
 
+use alloc::boxed::Box;
 use alloc::vec;
 use lose_net_stack::packets::tcp::TCPPacket;
 use lose_net_stack::IPv4;
 use lose_net_stack::MacAddress;
 use lose_net_stack::TcpFlags;
-use super::socket::block_current;
-use super::socket::{add_socket, pop_data, get_s_a_by_index, remove_socket};
+use super::socket::get_mutex_socket;
+use super::socket::{add_socket, get_s_a_by_index, remove_socket};
 use super::LOSE_NET_STACK;
+use crate::fs::ReadHelper;
+use crate::net::ASYNC_RDMP;
 use crate::task::block_current_and_run_next;
 use crate::task::current_task;
 use crate::task::suspend_current_and_run_next;
+use crate::trap::UserTrapRecord;
+use crate::trap::push_trap_record;
 use crate::{device::NetDevice, fs::File};
+
 pub struct TCP {
     pub target: IPv4,
     pub sport: u16,
@@ -22,7 +28,7 @@ pub struct TCP {
 
 impl TCP {
     pub fn new(target: IPv4, sport: u16, dport: u16, seq: u32, ack: u32) -> Option<Self> {
-        match add_socket(target, sport, dport) {
+        match add_socket(target, sport, dport, seq, ack) {
             Some(index) => {
                 Some(
                     Self {
@@ -39,8 +45,6 @@ impl TCP {
                 None
             }
         }
-
-        
     }
 }
 
@@ -55,8 +59,11 @@ impl File for TCP {
     }
 
     fn read(&self, mut buf: crate::mm::UserBuffer) -> Result<usize, isize> {
+        let socket = get_mutex_socket(self.socket_index).unwrap();
         loop {
-            if let Some(data) = pop_data(self.socket_index) {
+            let mut mutex_socket = socket.lock();
+            if let Some(data) = mutex_socket.buffers.pop_front() {
+                drop(mutex_socket);
                 let data_len = data.len();
                 let mut left = 0;
                 for i in 0..buf.buffers.len() {
@@ -72,10 +79,10 @@ impl File for TCP {
                 }
                 return Ok(left);
             } else {
-                // let current = current_task().unwrap();
-                // block_current(current, self.socket_index);
-                // block_current_and_run_next();
-                suspend_current_and_run_next();
+                let current = current_task().unwrap();
+                mutex_socket.block_task = Some(current);
+                drop(mutex_socket);
+                block_current_and_run_next();
             }
         }
     }
@@ -95,8 +102,8 @@ impl File for TCP {
         debug!("socket send len: {}", len);
 
         // get sock and sequence
-        let (ack, seq) = get_s_a_by_index(self.socket_index).map_or((0, 0), |x| x);
-
+        let (seq, ack) = get_s_a_by_index(self.socket_index).map_or((0, 0), |x| x);
+        debug!("[TCP write] seq: {}, ack: {}", seq, ack);
         let tcp_packet = TCPPacket {
             source_ip: lose_net_stack.ip,
             source_mac: lose_net_stack.mac,
@@ -120,8 +127,9 @@ impl File for TCP {
         todo!()
     }
 
-    fn aread(&self, buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
-        todo!()
+    fn aread(&self, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+        Box::pin(async_read(self.socket_index, buf, cid, pid))
+
     }
 }
 
@@ -129,4 +137,42 @@ impl Drop for TCP {
     fn drop(&mut self) {
         remove_socket(self.socket_index)
     }
+}
+
+
+async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize) {
+    let mut helper = Box::new(ReadHelper::new());
+    let socket = get_mutex_socket(socket_index).unwrap();
+    
+    loop {
+        let mut mutex_socket = socket.lock();
+        if let Some(data) = mutex_socket.buffers.pop_front() {
+            drop(mutex_socket);
+            let data_len = data.len();
+            let mut left = 0;
+            for i in 0..buf.buffers.len() {
+                let buffer_i_len = buf.buffers[i].len().min(data_len - left);
+
+                buf.buffers[i][..buffer_i_len]
+                    .copy_from_slice(&data[left..(left + buffer_i_len)]);
+
+                left += buffer_i_len;
+                if left == data_len {
+                    break;
+                }
+            }
+            break;
+        } else {
+            debug!("suspend current coroutine!");
+            ASYNC_RDMP.lock().insert(socket_index, lib_so::current_cid(true));
+            drop(mutex_socket);
+            // suspend_current_and_run_next();
+            helper.as_mut().await;
+        }
+    }
+
+    let _ = push_trap_record(pid, UserTrapRecord {
+        cause: 1,
+        message: cid,
+    });
 }

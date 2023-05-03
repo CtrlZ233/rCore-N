@@ -3,7 +3,7 @@ mod tcp;
 mod socket;
 
 use spin::Mutex;
-use alloc::{sync::Arc, vec};
+use alloc::{sync::Arc, vec, collections::BTreeMap};
 use lose_net_stack::{results::Packet, LoseStack, MacAddress, TcpFlags, IPv4};
 use socket::{get_socket, push_data, get_s_a_by_index, set_s_a_by_index};
 use port_table::check_accept;
@@ -11,6 +11,7 @@ use crate::device::NetDevice;
 
 pub use port_table::{accept, listen, port_acceptable, PortFd};
 pub struct NetStack(Mutex<LoseStack>);
+
 
 
 impl NetStack {
@@ -26,6 +27,7 @@ impl NetStack {
 
 lazy_static::lazy_static! {
     pub static ref LOSE_NET_STACK: Arc<NetStack> = Arc::new(NetStack::new());
+    pub static ref ASYNC_RDMP: Arc<Mutex<BTreeMap<usize, usize>>> = Arc::new(Mutex::new(BTreeMap::new()));
 }
 
 
@@ -53,9 +55,9 @@ pub fn net_interrupt_handler() {
                     let lport = udp_packet.dest_port;
                     let rport = udp_packet.source_port;
         
-                    if let Some(socket_index) = get_socket(target, lport, rport) {
-                        push_data(socket_index, udp_packet.data.to_vec());
-                    }
+                    // if let Some(socket_index) = get_socket(target, lport, rport) {
+                    //     push_data(socket_index, udp_packet.data.to_vec());
+                    // }
                 }
         
                 Packet::TCP(tcp_packet) => {
@@ -83,12 +85,12 @@ pub fn net_interrupt_handler() {
                         let reply_packet = tcp_packet.ack();
                         NetDevice.transmit(&reply_packet.build_data());
         
-                        let mut end_packet = reply_packet.ack();
+                        let mut end_packet: lose_net_stack::packets::tcp::TCPPacket = reply_packet.ack();
                         end_packet.flags |= TcpFlags::F;
                         NetDevice.transmit(&end_packet.build_data());
                     } else if tcp_packet.flags.contains(TcpFlags::A) && tcp_packet.data_len == 0 {
-                        // let reply_packet = tcp_packet.ack();
-                        // NetDevice.transmit(&reply_packet.build_data());
+                        let reply_packet = tcp_packet.ack();
+                        NetDevice.transmit(&reply_packet.build_data());
                         debug!("TCP A");
                         NetDevice.recycle_rx_buffer(buf);
                         return;
@@ -96,12 +98,11 @@ pub fn net_interrupt_handler() {
         
                     if let Some(socket_index) = get_socket(target, lport, rport) {
                         let packet_seq = tcp_packet.seq;
-                        let (ack, _) = get_s_a_by_index(socket_index).unwrap();
+                        let (seq, ack) = get_s_a_by_index(socket_index).unwrap();
                         debug!("packet_seq: {}, ack: {}", packet_seq, ack);
-                        if ack < packet_seq {
+                        if ack <= packet_seq {
                             debug!("push data: {}, {}", socket_index, tcp_packet.data_len);
-                            push_data(socket_index, tcp_packet.data.to_vec());
-                            set_s_a_by_index(socket_index, tcp_packet.seq, tcp_packet.ack);
+                            push_data(socket_index, &tcp_packet);
                         }
                         
                     }

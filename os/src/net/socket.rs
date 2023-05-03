@@ -2,10 +2,10 @@ use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
-use lose_net_stack::IPv4;
+use lose_net_stack::{IPv4, packets::tcp::TCPPacket};
 use spin::Mutex;
 
-use crate::task::{TaskControlBlock, add_task};
+use crate::{task::{TaskControlBlock, add_task}, net::ASYNC_RDMP};
 
 // TODO: specify the protocol, TCP or UDP
 pub struct Socket {
@@ -19,8 +19,13 @@ pub struct Socket {
 }
 
 lazy_static! {
-    static ref SOCKET_TABLE: Mutex<Vec<Option<Socket>>> =
+    static ref SOCKET_TABLE: Mutex<Vec<Option<Arc<Mutex<Socket>>>>> =
         unsafe { Mutex::new(Vec::new()) };
+}
+
+pub fn get_mutex_socket(index: usize) -> Option<Arc<Mutex<Socket>>> {
+    let socket_table = SOCKET_TABLE.lock();
+    socket_table.get(index).map_or(None, |x| (*x).clone())
 }
 
 pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
@@ -29,8 +34,11 @@ pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
     assert!(index < socket_table.len());
 
     socket_table.get(index).map_or(None, |x| match x {
-        Some(x) => Some((x.seq, x.ack)),
-        None => None,
+        Some(x) => {
+            let socket = x.lock();
+            return Some((socket.seq, socket.ack));
+        }
+        None => None
     })
 }
 
@@ -42,7 +50,7 @@ pub fn set_s_a_by_index(index: usize, seq: u32, ack: u32) {
     assert!(socket_table.len() > index);
     assert!(socket_table[index].is_some());
 
-    let sock = socket_table[index].as_mut().unwrap();
+    let mut sock = socket_table[index].as_mut().unwrap().lock();
 
     sock.ack = ack;
     sock.seq = seq;
@@ -57,7 +65,7 @@ pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
             continue;
         }
 
-        let sock = sock.as_ref().unwrap();
+        let sock = sock.as_ref().unwrap().lock();
         if sock.raddr == raddr && sock.lport == lport && sock.rport == rport {
             return Some(i);
         }
@@ -66,7 +74,7 @@ pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
 }
 
 
-pub fn add_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
+pub fn add_socket(raddr: IPv4, lport: u16, rport: u16, seq: u32, ack: u32) -> Option<usize> {
     if get_socket(raddr, lport, rport).is_some() {
         return None;
     }
@@ -85,16 +93,16 @@ pub fn add_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
         lport,
         rport,
         buffers: VecDeque::new(),
-        seq: 0,
-        ack: 0,
+        seq: seq,
+        ack: ack,
         block_task: None,
     };
 
     if index == usize::MAX {
-        socket_table.push(Some(socket));
+        socket_table.push(Some(Arc::new(Mutex::new(socket))));
         Some(socket_table.len() - 1)
     } else {
-        socket_table[index] = Some(socket);
+        socket_table[index] = Some(Arc::new(Mutex::new(socket)));
         Some(index)
     }
 }
@@ -103,48 +111,43 @@ pub fn remove_socket(index: usize) {
     let mut socket_table = SOCKET_TABLE.lock();
 
     assert!(socket_table.len() > index);
-
     socket_table[index] = None;
 }
 
-pub fn push_data(index: usize, data: Vec<u8>) {
+pub fn push_data(index: usize, packet: &TCPPacket) {
     let mut socket_table = SOCKET_TABLE.lock();
     if socket_table.len() <= index || socket_table[index].is_none() {
         return;
     }
     assert!(socket_table.len() > index);
     assert!(socket_table[index].is_some());
+    let mut socket = socket_table[index].as_mut().unwrap().lock();
+    socket.buffers.push_back(packet.data.to_vec());
+    socket.ack = packet.seq + packet.data_len as u32;
+    socket.seq = packet.ack;
+    debug!("[push_data] index: {}, socket.ack:{}, socket.seq:{}", index, socket.ack, socket.seq);
+    match socket.block_task.take() {
+        Some(task) => {
+            debug!("wake read task");
+            add_task(task);
+        }
+        _ => {
 
-    socket_table[index]
-        .as_mut()
-        .unwrap()
-        .buffers
-        .push_back(data);
+        }
+    }
 
-    // match socket_table[index].as_mut().unwrap().block_task.take() {
-    //     Some(task) => {
-    //         debug!("wake read task");
-    //         add_task(task);
-    //     }
-    //     _ => {
-
-    //     }
-    // }
+    if let Some(cid) = ASYNC_RDMP.lock().remove(&index) {
+        debug!("wake read coroutine task");
+        lib_so::re_back(cid, 0);
+    }
 
 }
 
-pub fn pop_data(index: usize) -> Option<Vec<u8>> {
-    let mut socket_table = SOCKET_TABLE.lock();
+// pub fn pop_data(index: usize) -> Option<Vec<u8>> {
+//     let mut socket_table = SOCKET_TABLE.lock();
 
-    assert!(socket_table.len() > index);
-    assert!(socket_table[index].is_some());
+//     assert!(socket_table.len() > index);
+//     assert!(socket_table[index].is_some());
 
-    socket_table[index].as_mut().unwrap().buffers.pop_front()
-}
-
-pub fn block_current(current: Arc<TaskControlBlock>, index: usize) {
-    let mut socket_table = SOCKET_TABLE.lock();
-    assert!(socket_table.len() > index);
-    assert!(socket_table[index].is_some());
-    socket_table[index].as_mut().unwrap().block_task = Some(current);
-}
+//     socket_table[index].as_mut().unwrap().buffers.pop_front()
+// }

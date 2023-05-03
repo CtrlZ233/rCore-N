@@ -5,6 +5,7 @@
 #![feature(map_try_insert)]
 #![feature(vec_into_raw_parts)]
 #![allow(unused)]
+#![feature(new_uninit)]
 
 
 extern crate alloc;

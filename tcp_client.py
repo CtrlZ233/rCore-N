@@ -16,12 +16,13 @@ def req(socket):
 
 def loop_monitor(socket):
     s = sched.scheduler(time.time, time.sleep)  # 生成调度器
-    s.enter(0.1, 1, req, (socket,))
+    s.enter(0.05, 1, req, (socket,))
     s.run()
 
 def connect(index):
     global global_num
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    time.sleep(0.2 * index)
     server_addr = ("127.0.0.1", 6201)
     tcp_socket.connect(server_addr)
 
@@ -45,7 +46,7 @@ def connect(index):
 
 
 threads = []
-threads_num = 4
+threads_num = 32
 for i in range(threads_num):
     t = Thread(target=connect, args=(i,))
     threads.append(t)

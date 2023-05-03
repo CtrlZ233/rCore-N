@@ -30,6 +30,16 @@ array-init = "2.0.0"
 heapless = "0.7.5"
 lib_so = { path = "../lib_so", features = ["kernel"] }
 
+[dependencies.smoltcp]
+version = "0.9.1"
+default-features = false
+features = [
+  "alloc", "log",   # no std
+  "medium-ethernet",
+  "proto-ipv4",
+  "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns"
+]
+
 
 [features]
 board_qemu = ["uart8250"]

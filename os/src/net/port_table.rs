@@ -98,8 +98,8 @@ pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<TaskContr
         tcp_packet.source_ip,
         tcp_packet.dest_port,
         tcp_packet.source_port,
-        tcp_packet.seq,
-        tcp_packet.ack,
+        0,
+        tcp_packet.seq + 1,
     ) {
         Some(tcp_socket) => {
             inner.fd_table[fd] = Some(Arc::new(tcp_socket));
