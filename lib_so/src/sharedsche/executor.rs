@@ -1,4 +1,4 @@
-use alloc::collections::{BTreeMap, VecDeque};
+use alloc::collections::{BTreeMap, VecDeque, BTreeSet};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -19,6 +19,8 @@ pub struct Executor {
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
     /// 就绪协程队列
     pub ready_queue: Vec<VecDeque<CoroutineId>>,
+    /// 阻塞协程集合
+    pub pending_set: BTreeSet<usize>,
     /// 协程优先级位图
     pub bitmap: BitMap,
     /// 进程最高优先级协程代表的优先级，内核可以直接访问物理地址来读取
@@ -36,6 +38,7 @@ impl Executor {
             currents: [None; MAX_THREAD_NUM],
             tasks: BTreeMap::new(),
             ready_queue: Vec::new(),
+            pending_set: BTreeSet::new(),
             bitmap: BitMap(0),
             priority: PRIO_NUM,
             wr_lock: Mutex::new(()),
@@ -103,6 +106,18 @@ impl Executor {
         }
     }
 
+    // 加入阻塞集合
+    pub fn pending(&mut self, cid: usize) {
+        let _lock = self.wr_lock.lock();
+        self.pending_set.insert(cid);
+    }
+
+    // 判断是否在阻塞集合中
+    pub fn is_pending(&mut self, cid: usize) -> bool {
+        let _lock = self.wr_lock.lock();
+        self.pending_set.contains(&cid)
+    }
+
     /// 增加执行器线程
     pub fn add_wait_tid(&mut self, tid: usize) {
         let _lock = self.wr_lock.lock();
@@ -118,6 +133,7 @@ impl Executor {
         if prio < self.priority {
             self.priority = prio;
         }
+        self.pending_set.remove(&cid.0);
         drop(lock);
         self.priority
     }

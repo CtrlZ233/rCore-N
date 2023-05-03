@@ -83,13 +83,13 @@ pub fn net_interrupt_handler() {
         
                     if let Some(socket_index) = get_socket(target, lport, rport) {
                         let packet_seq = tcp_packet.seq;
-                        let (seq, ack) = get_s_a_by_index(socket_index).unwrap();
-                        debug!("packet_seq: {}, ack: {}", packet_seq, ack);
-                        if ack <= packet_seq {
-                            debug!("push data: {}, {}", socket_index, tcp_packet.data_len);
-                            push_data(socket_index, &tcp_packet);
+                        if let Some((seq, ack)) = get_s_a_by_index(socket_index) {
+                            debug!("packet_seq: {}, ack: {}", packet_seq, ack);
+                            if ack == packet_seq && tcp_packet.data_len > 0 {
+                                debug!("push data: {}, {}", socket_index, tcp_packet.data_len);
+                                push_data(socket_index, &tcp_packet);
+                            }
                         }
-                        
                     }
                 }
                 _ => {}

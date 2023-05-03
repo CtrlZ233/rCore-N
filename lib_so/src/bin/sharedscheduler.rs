@@ -135,7 +135,9 @@ pub fn poll_user_future() {
                     let cid = task.cid;
                     // println!("user task kind {:?}", task.kind);
                     match task.execute() {
-                        Poll::Pending => { }
+                        Poll::Pending => {
+                            (*exe).pending(cid.0);
+                        }
                         Poll::Ready(()) => {
                             (*exe).del_coroutine(cid);
                         }
@@ -191,6 +193,7 @@ pub fn poll_kernel_future() {
                     let _prio = task.inner.lock().prio;
                     match task.execute() {
                         Poll::Pending => {
+                            (*exe).pending(cid.0);
                             if kind == CoroutineKind::KernSche {
                                 // println_hart!("pending reback sche task{:?} kind {:?}", hart_id(), cid, kind);
                                 re_back(cid.0, 0);
@@ -230,6 +233,9 @@ pub fn re_back(cid: usize, pid: usize) {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        if !(*exe).is_pending(cid) {
+            return;
+        }
         let prio = (*exe).re_back(CoroutineId(cid));
         // 重新入队之后，需要检查优先级
         let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);

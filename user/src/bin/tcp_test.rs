@@ -3,68 +3,189 @@
 #[macro_use]
 extern crate alloc;
 extern crate user_lib;
-use user_lib::*;
-use alloc::string::String;
+use user_lib::{*, matrix::{string_to_matrix, print_matrix, Matrix, matrix_multiply, matrix_to_string}};
+use alloc::{string::{String, ToString}, vec::Vec, collections::{VecDeque, BTreeMap}};
+use alloc::sync::Arc;
+use alloc::boxed::Box;
+use spin::Mutex;
+use lazy_static::*;
 #[derive(PartialEq, Eq)]
 enum ModelType {
     Coroutine = 1,
     Thread = 2,
 }
 
-static MAX_POLL_THREADS: usize = 1;
+const BUF_LEN: usize = 2048;
+const MATRIX_SIZE: usize = 10;
+
+const CLOSE_CONNECT_STR: &str = "close connection";
+
+static MAX_POLL_THREADS: usize = 3;
 static MODEL_TYPE: ModelType = ModelType::Coroutine;
 static CONNECTION_NUM: usize = 32;
 
+static mut REQ_MAP: Vec<Mutex<VecDeque<String>>> = Vec::new();
+static mut RSP_MAP: Vec<Mutex<VecDeque<String>>> = Vec::new();
+
+fn get_req_queue(client_fd: usize) -> &'static Mutex<VecDeque<String>> {
+    unsafe {
+        &REQ_MAP[client_fd]
+    }
+}
+
+fn get_rsp_queue(client_fd: usize) -> &'static Mutex<VecDeque<String>> {
+    unsafe {
+        &RSP_MAP[client_fd]
+    }
+}
+
+fn init_connection() {
+    for _ in 0..(CONNECTION_NUM + 10) {
+        unsafe {
+            REQ_MAP.push(Mutex::new(VecDeque::new()));
+            RSP_MAP.push(Mutex::new(VecDeque::new()));
+        }
+    }
+}
 
 fn handle_tcp_client(client_fd: usize) -> bool {
     println!("start tcp_client");
     let str = "connect ok";
-    let mut begin_buf = vec![0u8; 1024];
+    let mut begin_buf = vec![0u8; BUF_LEN];
     read!(client_fd as usize, &mut begin_buf);
     syscall::write!(client_fd, str.as_bytes());
     loop {
-        let mut buf = vec![0u8; 1024];
+        let mut buf = vec![0u8; BUF_LEN];
         let _len = read!(client_fd as usize, &mut buf);
         let recv_str: String = buf.iter()
         .take_while(|&&b| b != 0)
         .map(|&b| b as char)
         .collect();
-        if recv_str == "close connection" {
+        
+        get_req_queue(client_fd).lock().push_back(recv_str.clone());
+        if recv_str == CLOSE_CONNECT_STR {
             break;
         }
-        
-        let responese = "response from server";
-        // write a response
-        syscall::write!(client_fd, responese.as_bytes());
     }
-    
-    close(client_fd);
+
+    exit(2);
+}
+
+fn matrix_calc(client_fd: usize) {
+    loop {
+        if let Some(req) = get_req_queue(client_fd).lock().pop_front() {
+            let rsp;
+            if req != CLOSE_CONNECT_STR {
+                let matrix = string_to_matrix::<MATRIX_SIZE>(&req);
+                let ans = matrix_multiply(matrix.clone(), matrix.clone());
+                rsp = matrix_to_string(ans);
+            } else {
+                rsp = CLOSE_CONNECT_STR.to_string();
+            }
+            get_rsp_queue(client_fd).lock().push_back(rsp);
+            if req == CLOSE_CONNECT_STR {
+                println!("[matrix_calc] break");
+                break;
+            }
+        } else {
+            yield_();
+        }
+    }
+    exit(2);
+}
+
+fn send_rsp(client_fd: usize) {
+    loop {
+        if let Some(rsp) = get_rsp_queue(client_fd).lock().pop_front() {
+            if rsp == CLOSE_CONNECT_STR {
+                println!("[send_rsp] break");
+                println!("close socket fd: {}", client_fd);
+                close(client_fd);
+                break;
+            }
+            syscall::write!(client_fd, rsp.as_bytes());
+        } else {
+            yield_();
+        }
+    }
     exit(2);
 }
 
 
-async fn handle_tcp_client_async(client_fd: usize) {
+async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
     println!("start tcp_client");
     let str = "connect ok";
-    let mut begin_buf = vec![0u8; 1024];
+    let mut begin_buf = vec![0u8; BUF_LEN];
     read!(client_fd as usize, &mut begin_buf, 0, current_cid());
     syscall::write!(client_fd, str.as_bytes());
     loop {
-        let mut buf = vec![0u8; 1024];
+        let mut buf = vec![0u8; BUF_LEN];
         read!(client_fd as usize, &mut buf, 0, current_cid());
         let recv_str: String = buf.iter()
         .take_while(|&&b| b != 0)
         .map(|&b| b as char)
         .collect();
-        if recv_str == "close connection" {
+        
+        let mut req_queue = get_req_queue(client_fd).lock();
+        req_queue.push_back(recv_str.clone());
+        re_back(matrix_calc_cid);
+
+        if recv_str == CLOSE_CONNECT_STR {
+            println!("[handle_tcp_client_async] break");
             break;
         }
-        
-        let responese = "response from server";
-        // write a response
-        syscall::write!(client_fd, responese.as_bytes());
     }
-    close(client_fd);
+}
+
+async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize) {
+    loop {
+        let mut req_queue = get_req_queue(client_fd).lock();
+        if let Some(req) = req_queue.pop_front() {
+            let mut rsp;
+            if req != CLOSE_CONNECT_STR {
+                drop(req_queue);
+                let matrix = string_to_matrix::<MATRIX_SIZE>(&req);
+                let ans = matrix_multiply(matrix.clone(), matrix.clone());
+                rsp = matrix_to_string(ans);
+            } else {
+                rsp = CLOSE_CONNECT_STR.to_string();
+            }
+
+            let mut rsp_queue = get_rsp_queue(client_fd).lock();
+            rsp_queue.push_back(rsp);
+            re_back(send_rsp_cid);
+
+            if req == CLOSE_CONNECT_STR {
+                println!("[matrix_calc] break");
+                break;
+            }
+
+        } else {
+            drop(req_queue);
+            let mut helper = Box::new(AwaitHelper::new());
+            helper.as_mut().await;
+        }
+    }
+}
+
+async fn send_rsp_async(client_fd: usize) {
+    loop {
+        let mut rsp_queue = get_rsp_queue(client_fd).lock();
+        if let Some(rsp) = rsp_queue.pop_front() {
+            if rsp == CLOSE_CONNECT_STR {
+                println!("[send_rsp] break");
+                println!("close socket fd: {}", client_fd);
+                close(client_fd);
+                break;
+            }
+            drop(rsp_queue);
+            syscall::write!(client_fd, rsp.as_bytes());
+        } else {
+            drop(rsp_queue);
+            let mut helper = Box::new(AwaitHelper::new());
+            helper.as_mut().await;
+        }
+    }
 }
 
 #[no_mangle]
@@ -88,15 +209,22 @@ pub fn main() -> i32 {
         println!("Failed to listen on port 80");
         return -1;
     }
+    init_connection();
     let mut wait_tid = vec![];
     for _ in 0..CONNECTION_NUM {
         let client_fd = accept(tcp_fd as usize);
-        println!("client connected: {}", client_fd);
+        // println!("client connected: {}", client_fd);
         if MODEL_TYPE == ModelType::Thread {
-            let tid = thread_create(handle_tcp_client as usize, client_fd as usize) as usize;
-            wait_tid.push(tid);
+            let tid1 = thread_create(handle_tcp_client as usize, client_fd as usize) as usize;
+            let tid2 = thread_create(send_rsp as usize, client_fd as usize) as usize;
+            let tid3 = thread_create(matrix_calc as usize, client_fd as usize) as usize;
+            wait_tid.push(tid1);
+            wait_tid.push(tid2);
+            wait_tid.push(tid3);
         } else {
-            spawn(move || handle_tcp_client_async(client_fd as usize), 0);
+            let send_rsp_cid = spawn(move || send_rsp_async(client_fd as usize), 0);
+            let matrix_calc_cid = spawn(move || matrix_calc_async(client_fd as usize, send_rsp_cid), 0);
+            spawn(move || handle_tcp_client_async(client_fd as usize, matrix_calc_cid), 0);
         }
     }
 

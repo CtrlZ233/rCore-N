@@ -1,5 +1,6 @@
 use alloc::{vec::Vec, string::ToString};
 use alloc::vec;
+use alloc::sync::Arc;
 use alloc::string::String;
 use rand_core::{RngCore, SeedableRng};
 use rand_xorshift::XorShiftRng;
@@ -11,6 +12,8 @@ lazy_static! {
     static ref RNG: Mutex<XorShiftRng> = Mutex::new(XorShiftRng::seed_from_u64(0x1020304050607080u64));
 }
 
+pub type Matrix<const N: usize> = [[u64; N]; N];
+
 pub fn matrix_mul_test(n: usize) {
     let mut a = vec![vec![0_u64; n]; n];
     for i in 0..n
@@ -21,12 +24,12 @@ pub fn matrix_mul_test(n: usize) {
         }
     }
 
-    let _result = matrix_multiply(n, &a, &a);
+    let _result = matrix_multiply2(n, &a, &a);
 }
 
-pub fn matrix_multiply(n:usize, a1: &[Vec<u64>], a2: &[Vec<u64>]) -> Vec<Vec<u64>>
+pub fn matrix_multiply2(n: usize, a1: &[Vec<u64>], a2: &[Vec<u64>]) -> Vec<Vec<u64>>
 {
-    let mut result = vec![vec![0_u64; n]; n];
+    let mut result = vec![vec![0; n]; n];
     for i in 0..n
     {
         for j in 0..n
@@ -40,19 +43,24 @@ pub fn matrix_multiply(n:usize, a1: &[Vec<u64>], a2: &[Vec<u64>]) -> Vec<Vec<u64
     return result;
 }
 
-pub fn get_matrix(n: usize) -> Vec<Vec<u64>> {
-    let mut a = vec![vec![0_u64; n]; n];
-    for i in 0..n
+pub fn matrix_multiply<const N: usize>(a1: Arc<Matrix<N>>, a2: Arc<Matrix<N>>) -> Arc<Matrix<N>>
+{
+    let mut result = [[0_u64; N]; N];
+    for i in 0..N
     {
-        for j in 0..n
+        for j in 0..N
         {
-            a[i][j] = RNG.lock().next_u64() % 1000;
+            for k in 0..N
+            {
+                result[i][j] += a1[i][k] * a2[k][j];
+            }
         }
     }
-    a
+    return Arc::new(result);
 }
 
-pub fn print_matrix(matrix: &Vec<Vec<u64>>) {
+
+pub fn print_matrix<const N: usize>(matrix: Arc<Matrix<N>>) {
     for vec in matrix.iter() {
         for elem in vec.iter() {
             print!("{} ", elem);
@@ -61,7 +69,7 @@ pub fn print_matrix(matrix: &Vec<Vec<u64>>) {
     }
 }
 
-pub fn matrix_to_string(matrix: &Vec<Vec<u64>>) -> String {
+pub fn matrix_to_string<const N: usize>(matrix: Arc<Matrix<N>>) -> String {
     let mut ans = String::new();
     for vec in matrix.iter() {
         for elem in vec.iter() {
@@ -73,15 +81,14 @@ pub fn matrix_to_string(matrix: &Vec<Vec<u64>>) -> String {
     ans
 }
 
-pub fn string_to_matrix(n: usize, matrix: &String) -> Vec<Vec<u64>> {
-    let mut ans = vec![vec![0_u64; n]; n];
+pub fn string_to_matrix<const N: usize>(matrix: &String) -> Arc<Matrix<N>> {
+    let mut ans = [[0_u64; N]; N];
     let vec_string: Vec<&str> = matrix.split(" ").collect();
-    // assert!(n * n ==  vec_string.len());
-    println!("{} vs {}", n * n, vec_string.len());
-    for i in 0..n {
-        for j in 0..n {
-            ans[i][j] = vec_string[i * n + j].parse::<u64>().unwrap();
+    assert_eq!(N * N, vec_string.len());
+    for i in 0..N {
+        for j in 0..N {
+            ans[i][j] = vec_string[i * N + j].parse::<u64>().unwrap();
         }
     }
-    ans
+    Arc::new(ans)
 }
