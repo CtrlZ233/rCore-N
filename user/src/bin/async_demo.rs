@@ -19,8 +19,8 @@ pub fn main() -> i32 {
     let read_end = pipe_fd[0];
     let write_end = pipe_fd[1];
     // 先添加读的协程，再添加写的协程，两个协程的优先级相同
-    lib_so::spawn(move || server_read(read_end, 333), 0, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
-    lib_so::spawn(move || client_write(write_end, 333), 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+    spawn(move || server_read(read_end, 333), 0);
+    spawn(move || client_write(write_end, 333), 1);
     0
 }
 

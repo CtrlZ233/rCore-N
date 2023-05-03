@@ -42,20 +42,6 @@ pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
     })
 }
 
-pub fn set_s_a_by_index(index: usize, seq: u32, ack: u32) {
-    let mut socket_table = SOCKET_TABLE.lock();
-    if socket_table.len() <= index || socket_table[index].is_none() {
-        return;
-    }
-    assert!(socket_table.len() > index);
-    assert!(socket_table[index].is_some());
-
-    let mut sock = socket_table[index].as_mut().unwrap().lock();
-
-    sock.ack = ack;
-    sock.seq = seq;
-}
-
 
 pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
     let socket_table = SOCKET_TABLE.lock();

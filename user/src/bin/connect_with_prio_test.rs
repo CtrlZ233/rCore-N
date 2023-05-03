@@ -3,24 +3,14 @@
 
 extern crate alloc;
 extern crate user_lib;
-use core::future::Future;
-use core::sync::atomic::{AtomicBool, AtomicU16};
+use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
-use core::task::{Context, Poll};
-use core::pin::Pin;
-use core::u64::MAX;
-use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use alloc::vec;
 use alloc::collections::VecDeque;
+use core::ops::{Add, Sub};
 use spin::Mutex;
-use core::ops::{Add, Sub, Mul};
-use rand_core::{RngCore, SeedableRng};
-use rand_xorshift::XorShiftRng;
 use user_lib::*;
 use alloc::boxed::Box;
-use lazy_static::*;
-use syscall::set_timer;
 // pub const REQUEST: &str = "test";
 // pub const REQUEST: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";   // 测试数据
 pub const BUFFER_SIZE: usize = 4096;        // 缓冲区大小
@@ -35,7 +25,6 @@ static RUN_TIME_LIMIT: usize = 5_000;
 static RES_LOCK: Mutex<usize> = Mutex::new(0);
 
 const MATRIX_SIZE: usize = 1;
-static MSG_COUNT: Mutex<usize> = Mutex::new(0);
 // pub const DATA_C: &str = "a";
 // pub const DATA_S: &str = "x";
 
@@ -63,14 +52,6 @@ static COMPLETE_SERVER: Mutex<usize> = Mutex::new(0);
 static COMPLETE_RECV: Mutex<usize> = Mutex::new(0);
 static COMPLETE_SENDER: Mutex<usize> = Mutex::new(0);
 
-
-static PRINT_LOCK: Mutex<()> = Mutex::new(());
-
-fn println(a: usize, b: usize) {
-    let _lock = PRINT_LOCK.lock();
-    println!("end: {}, start: {}", a, b);
-}
-
 #[no_mangle]
 pub fn main() -> i32 {
     let father_pid = getpid();
@@ -82,7 +63,7 @@ pub fn main() -> i32 {
     println!("main tid: {}", gettid());
     // lib_so::spawn(move ||client_send(0, 0, pid as usize), 1, pid as usize + 1, lib_so::CoroutineKind::UserNorm);
 
-    for i in 0..MAX_CONNECTION {
+    for _ in 0..MAX_CONNECTION {
         let mut fds0 = [0usize; 2];
         let mut fds1 = [0usize; 2];
         pipe(&mut fds0);
@@ -100,7 +81,7 @@ pub fn main() -> i32 {
     if pid == 0 {
         // 客户端进程
         let cur_pid = getpid() as usize;
-        for i in 0..MAX_CONNECTION {
+        for _ in 0..MAX_CONNECTION {
             unsafe {
                 TIMER_QUEUE.push(Mutex::new(VecDeque::new()));
                 REQ_DELAY.push(Vec::new());
@@ -131,7 +112,7 @@ pub fn main() -> i32 {
     } else {
         // 服务端进程
         let cur_pid = getpid() as usize;
-        for i in 0..MAX_CONNECTION {
+        for _ in 0..MAX_CONNECTION {
             unsafe {
                 RECEIVE_BUFFER.push(Mutex::new(0));
                 SERVER_BUFFER.push(Mutex::new(0));
@@ -208,11 +189,9 @@ async fn msg_server(key: usize, cid: usize) {
             }
         }
 
-        unsafe {
-            if SENDER_AWAIT[key].load(Relaxed) {
-                re_back(cid);
-                SENDER_AWAIT[key].store(false, Relaxed);
-            }
+        if SENDER_AWAIT[key].load(Relaxed) {
+            re_back(cid);
+            SENDER_AWAIT[key].store(false, Relaxed);
         }
     }
 
@@ -299,20 +278,8 @@ async fn client_send(client_fd: usize, key: usize, pid: usize) {
     let req = DATA_C;
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
-            // let start = get_time();
-            // println!("timer start");
-            let mut helper = Box::new(TimerHelper::new());
+            let mut helper = Box::new(TimerHelper::new(SEND_TIMER));
             helper.as_mut().await;
-            // println!("timer end");
-            // let end = get_time();
-            // println!("time interval: {}", end - start);
-            // println!("{}, {}", get_time_us(), get_time());
-            let start = get_time_us() as usize;
-            unsafe {
-                if start < START_TIME * 1000 {
-                    println(start, START_TIME);
-                }
-            }
             TIMER_QUEUE[key].lock().push_back(get_time_us() as usize);
             syscall::write!(client_fd, req.as_bytes(), key, pid);
         }
@@ -323,12 +290,10 @@ async fn client_send(client_fd: usize, key: usize, pid: usize) {
 
 
 async fn client_recv(client_fd: usize, key: usize) {
-    let mut throughput = 0;
     let mut buffer = [0u8; DATA_C.len()];
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
             read!(client_fd, &mut buffer, key, current_cid());
-            throughput += 1;
             let cur = get_time_us() as usize;
             if let Some(start) = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_back() {
                 REQ_DELAY[key - MAX_CONNECTION].push(cur - start);
@@ -376,72 +341,19 @@ fn final_statistic() {
 }
 
 fn calc_per_prio(req_dealy: &Vec<usize>) -> (isize, isize) {
-    let mut avg = 0;
-    let mut sigma = 0;
     let sum: usize = req_dealy.iter().sum();
-    avg = sum as isize / (req_dealy.len() as isize);
+    let avg = sum as isize / (req_dealy.len() as isize);
     let mut sigma_sum = 0;
     for delay in req_dealy.iter() {
         let tmp = (*delay) as isize - avg;
         sigma_sum += tmp * tmp;
     }
 
-    sigma = sigma_sum / (req_dealy.len() as isize);
+    let sigma = sigma_sum / (req_dealy.len() as isize);
     (avg, sigma)
 }
 
 
-struct TimerHelper {
-    time: usize,
-}
-
-impl TimerHelper {
-    fn new() -> Self {
-        TimerHelper {
-            time: get_time() as usize,
-        }
-    }
-}
-
-impl Future for TimerHelper {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let cur_time = get_time() as usize;
-        if self.time + SEND_TIMER > cur_time {
-            // println!("send start: {}", current_cid());
-            set_timer!(((self.time + SEND_TIMER) * 1000) as isize, current_cid());
-            return Poll::Pending;
-        }
-        
-        return Poll::Ready(());
-    }
-}
-
-
-struct AwaitHelper {
-    flag: bool,
-}
-
-impl AwaitHelper {
-    fn new() -> Self {
-        AwaitHelper {
-            flag: false,
-        }
-    }
-}
-
-impl Future for AwaitHelper {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.flag == false {
-            self.flag = true;
-            return Poll::Pending;
-        }
-        return Poll::Ready(());
-    }
-}
 
 
 #[no_mangle]

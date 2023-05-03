@@ -4,9 +4,7 @@
 extern crate alloc;
 extern crate user_lib;
 use user_lib::*;
-use alloc::boxed::Box;
 use alloc::vec;
-use spin::Mutex;
 pub const PAIR_NUM: usize = 4;              //
 pub const MAX_LEN: usize = 128;          //
 // pub const REQUEST: &str = "test";
@@ -22,7 +20,6 @@ pub const DATA_S: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 // pub const DATA_C: &str = "a";
 // pub const DATA_S: &str = "x";
 
-static PRINT_LOCK: Mutex<()> = Mutex::new(());
 
 const MAX_POLL_THREADS: usize = 1 - 1;
 
@@ -60,7 +57,7 @@ pub fn main() -> i32 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            lib_so::spawn(|| server(readis[i], writei, key + 1, j, i), j / factor + 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+            spawn(|| server(readis[i], writei, key + 1, j, i), j / factor + 1);
             readis[i] = fd2[0];
             key += 1;
             last_keys[i] = key;
@@ -68,16 +65,15 @@ pub fn main() -> i32 {
     }
     
     for i in 0..PAIR_NUM {
-        lib_so::spawn(|| client(first_writes[i], readis[i], 0, last_keys[i]), 0, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+        spawn(|| client(first_writes[i], readis[i], 0, last_keys[i]), 0);
     }
     0
 }
 
 
 // 服务端接收用户端的请求，从管道中读取内容
-async fn server(fd1: usize, fd2: usize, key: usize, j: usize, i: usize) {
+async fn server(fd1: usize, fd2: usize, key: usize, _j: usize, _i: usize) {
     let mut buffer = [0u8; DATA_C.len()];
-    let buffer_ptr = buffer.as_ptr() as usize;
     read!(fd1, &mut buffer);
     let resp = DATA_S;
     syscall::write!(fd2, resp.as_bytes(), key, getpid() as usize);
@@ -86,20 +82,11 @@ async fn server(fd1: usize, fd2: usize, key: usize, j: usize, i: usize) {
 
 // 客户端发送请求，向管道中写请求内容
 async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
-
-    
     let req = DATA_C;
-    unsafe{ syscall::write!(fd1, req.as_bytes(), key1, getpid() as usize); }
+    syscall::write!(fd1, req.as_bytes(), key1, getpid() as usize);
     close(fd1);
     let mut buffer = [0u8; DATA_C.len()];
-    // read(fd2, &mut buffer);
     read!(fd2, &mut buffer, key2, current_cid());
-    // for c in buffer {
-    //     if c != 0 {
-    //         // print!("{}", c as char);
-    //     }
-    // }
-    // println!("");
 }
 
 #[no_mangle]

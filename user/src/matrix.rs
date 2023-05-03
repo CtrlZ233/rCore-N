@@ -21,7 +21,7 @@ pub fn matrix_mul_test(n: usize) {
         }
     }
 
-    let result = matrix_multiply(n, &a, &a);
+    let _result = matrix_multiply(n, &a, &a);
 }
 
 pub fn matrix_multiply(n:usize, a1: &[Vec<u64>], a2: &[Vec<u64>]) -> Vec<Vec<u64>>
