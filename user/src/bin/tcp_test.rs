@@ -4,7 +4,7 @@
 extern crate alloc;
 extern crate user_lib;
 use user_lib::*;
-
+use alloc::string::String;
 #[derive(PartialEq, Eq)]
 enum ModelType {
     Coroutine = 1,
@@ -15,7 +15,6 @@ static MAX_POLL_THREADS: usize = 1;
 static MODEL_TYPE: ModelType = ModelType::Coroutine;
 static CONNECTION_NUM: usize = 32;
 
-use alloc::string::{String, ToString};
 
 fn handle_tcp_client(client_fd: usize) -> bool {
     println!("start tcp_client");
@@ -23,17 +22,16 @@ fn handle_tcp_client(client_fd: usize) -> bool {
     let mut begin_buf = vec![0u8; 1024];
     read!(client_fd as usize, &mut begin_buf);
     syscall::write!(client_fd, str.as_bytes());
-    let server_times = 20;
-    for i in 0..server_times {
+    loop {
         let mut buf = vec![0u8; 1024];
-        let len = read!(client_fd as usize, &mut buf);
-        println!("server time: {}, receive {} bytes", i, len);
-        for c in buf {
-            if c != 0 {
-                print!("{}", c as char);
-            }
+        let _len = read!(client_fd as usize, &mut buf);
+        let recv_str: String = buf.iter()
+        .take_while(|&&b| b != 0)
+        .map(|&b| b as char)
+        .collect();
+        if recv_str == "close connection" {
+            break;
         }
-        println!("");
         
         let responese = "response from server";
         // write a response
@@ -51,24 +49,22 @@ async fn handle_tcp_client_async(client_fd: usize) {
     let mut begin_buf = vec![0u8; 1024];
     read!(client_fd as usize, &mut begin_buf, 0, current_cid());
     syscall::write!(client_fd, str.as_bytes());
-    let server_times = 20;
-    for i in 0..server_times {
+    loop {
         let mut buf = vec![0u8; 1024];
         read!(client_fd as usize, &mut buf, 0, current_cid());
-        println!("server time: {}", i);
-        for c in buf {
-            if c != 0 {
-                print!("{}", c as char);
-            }
+        let recv_str: String = buf.iter()
+        .take_while(|&&b| b != 0)
+        .map(|&b| b as char)
+        .collect();
+        if recv_str == "close connection" {
+            break;
         }
-        println!("");
         
         let responese = "response from server";
         // write a response
         syscall::write!(client_fd, responese.as_bytes());
     }
     close(client_fd);
-    println!("handle end");
 }
 
 #[no_mangle]
@@ -93,14 +89,14 @@ pub fn main() -> i32 {
         return -1;
     }
     let mut wait_tid = vec![];
-    for i in 0..CONNECTION_NUM {
+    for _ in 0..CONNECTION_NUM {
         let client_fd = accept(tcp_fd as usize);
         println!("client connected: {}", client_fd);
         if MODEL_TYPE == ModelType::Thread {
             let tid = thread_create(handle_tcp_client as usize, client_fd as usize) as usize;
             wait_tid.push(tid);
         } else {
-            lib_so::spawn(move || handle_tcp_client_async(client_fd as usize), 0, pid as usize + 1, lib_so::CoroutineKind::UserNorm);
+            spawn(move || handle_tcp_client_async(client_fd as usize), 0);
         }
     }
 

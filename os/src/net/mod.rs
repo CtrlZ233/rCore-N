@@ -5,7 +5,7 @@ mod socket;
 use spin::Mutex;
 use alloc::{sync::Arc, vec, collections::BTreeMap};
 use lose_net_stack::{results::Packet, LoseStack, MacAddress, TcpFlags, IPv4};
-use socket::{get_socket, push_data, get_s_a_by_index, set_s_a_by_index};
+use socket::{get_socket, push_data, get_s_a_by_index};
 use port_table::check_accept;
 use crate::device::NetDevice;
 
@@ -40,24 +40,12 @@ pub fn net_interrupt_handler() {
                 .analysis(buf.packet());
             match packet {
                 Packet::ARP(arp_packet) => {
-                    debug!("ARP");
                     let lose_stack: spin::MutexGuard<LoseStack> = LOSE_NET_STACK.0.lock();
                     let reply_packet = arp_packet
                         .reply_packet(lose_stack.ip, lose_stack.mac)
                         .expect("can't build reply");
                     let reply_data = reply_packet.build_data();
                     NetDevice.transmit(&reply_data)
-                }
-        
-                Packet::UDP(udp_packet) => {
-                    debug!("UDP");
-                    let target = udp_packet.source_ip;
-                    let lport = udp_packet.dest_port;
-                    let rport = udp_packet.source_port;
-        
-                    // if let Some(socket_index) = get_socket(target, lport, rport) {
-                    //     push_data(socket_index, udp_packet.data.to_vec());
-                    // }
                 }
         
                 Packet::TCP(tcp_packet) => {
@@ -68,7 +56,6 @@ pub fn net_interrupt_handler() {
                     let flags = tcp_packet.flags;
                     debug!("[TCP] target: {}, lport: {}, rport: {}", target, lport, rport);
                     if flags.contains(TcpFlags::S) {
-                        debug!("TCP S");
                         // if it has a port to accept, then response the request
                         if check_accept(lport, &tcp_packet).is_some() {
                             let mut reply_packet = tcp_packet.ack();
@@ -80,7 +67,6 @@ pub fn net_interrupt_handler() {
                         NetDevice.recycle_rx_buffer(buf);
                         return;
                     } else if tcp_packet.flags.contains(TcpFlags::F) {
-                        debug!("TCP F");
                         // tcp disconnected
                         let reply_packet = tcp_packet.ack();
                         NetDevice.transmit(&reply_packet.build_data());
@@ -91,7 +77,6 @@ pub fn net_interrupt_handler() {
                     } else if tcp_packet.flags.contains(TcpFlags::A) && tcp_packet.data_len == 0 {
                         let reply_packet = tcp_packet.ack();
                         NetDevice.transmit(&reply_packet.build_data());
-                        debug!("TCP A");
                         NetDevice.recycle_rx_buffer(buf);
                         return;
                     }
@@ -107,9 +92,7 @@ pub fn net_interrupt_handler() {
                         
                     }
                 }
-                _ => {
-                    debug!("nothing");
-                }
+                _ => {}
 
             }
             NetDevice.recycle_rx_buffer(buf);

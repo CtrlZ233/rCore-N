@@ -11,7 +11,7 @@ const MAX_USER_TRAP_NUM: usize = 128;
 
 use rv_plic::PLIC;
 
-use crate::trace::{push_trace, TRAP_QUEUE_ENTER, TRAP_QUEUE_EXIT, U_TRAP_HANDLER};
+use crate::trace::{push_trace, U_TRAP_HANDLER};
 pub const PLIC_BASE: usize = 0xc00_0000;
 pub const PLIC_PRIORITY_BIT: usize = 3;
 pub type Plic = PLIC<PLIC_BASE, PLIC_PRIORITY_BIT>;
@@ -65,10 +65,6 @@ pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
         ucause::Trap::Interrupt(ucause::Interrupt::UserSoft) => {
             // push_trace(TRAP_QUEUE_ENTER);
             let trap_queue = unsafe { &mut *(USER_TRAP_BUFFER as *mut UserTrapQueue) };
-            // println!(
-            //     "[user trap] Received {} trap from kernel.",
-            //     trap_queue.len()
-            // );
             unsafe {
                 uip::clear_usoft();
             }

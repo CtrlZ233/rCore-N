@@ -8,7 +8,6 @@
 extern crate lib_so;
 extern crate alloc;
 
-use alloc::vec;
 use lib_so::config::{ENTRY, MAX_THREAD_NUM, MAX_PROC_NUM, HEAP_BUFFER};
 use core::sync::atomic::Ordering;
 use core::sync::atomic::AtomicUsize;
@@ -189,7 +188,7 @@ pub fn poll_kernel_future() {
                 Some(task) => {
                     let cid = task.cid;
                     let kind = task.kind;
-                    let prio = task.inner.lock().prio;
+                    let _prio = task.inner.lock().prio;
                     match task.execute() {
                         Poll::Pending => {
                             if kind == CoroutineKind::KernSche {

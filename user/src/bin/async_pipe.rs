@@ -52,16 +52,13 @@ pub fn main() -> i32 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            lib_so::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
-            // sleep(100);
+            spawn(move || server(readi, writei, key + 1), 1);
             readi = fd2[0];
             key += 1;
         }
-        lib_so::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
-        // sleep(100);
+        spawn(move || client(first_write, readi, first_key, key), 0);
         key += 2;
     }
-    // sleep(1000);
     0
 }
 
@@ -72,9 +69,7 @@ async fn server(fd1: usize, fd2: usize, key: usize) {
     let mut buffer = [0u8; DATA_C.len()];
     // println!("buffer len: {}", DATA_C.len());
     read!(fd1, &mut buffer, key - 1, current_cid());
-    // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd1, buffer.as_ptr() as usize, buffer.len(), key - 1);
-    // ac_r.await;
-    // read!(fd1, &mut buffer);
+
     let resp = DATA_S;
     syscall::write!(fd2, resp.as_bytes(), key, getpid() as usize);
     close(fd2);
@@ -89,18 +84,6 @@ async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
     close(fd1);
     let mut buffer = [0u8; DATA_C.len()];
     read!(fd2, &mut buffer, key2, current_cid());
-    // async_read(ASYNC_SYSCALL_READ, fd2, buffer_ptr, buffer.len(), key2, current_cid()).await;
-    // let ac_r = AsyncCall::new(ASYNC_SYSCALL_READ, fd2, buffer.as_ptr() as usize, buffer.len(), key2);
-    // ac_r.await;
-    // print!("------------------buffer: ");
-    // for c in buffer {
-    //     if c != 0 {
-    //         print!("{}", c as char);
-    //     }
-    // }
-    // println!("");
-
-    // println!("client write end");
 }
 
 #[no_mangle]
