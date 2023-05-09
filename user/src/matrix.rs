@@ -71,9 +71,10 @@ pub fn print_matrix<const N: usize>(matrix: Arc<Matrix<N>>) {
 
 pub fn matrix_to_string<const N: usize>(matrix: Arc<Matrix<N>>) -> String {
     let mut ans = String::new();
-    for vec in matrix.iter() {
-        for elem in vec.iter() {
-            ans += &elem.to_string();
+    for i in 0..N {
+        for j in 0..N {
+            // println!("elem: {}", matrix[i][j]);
+            ans += &matrix[i][j].to_string();
             ans += " ";
         }
     }
@@ -88,6 +89,7 @@ pub fn string_to_matrix<const N: usize>(matrix: &String) -> Arc<Matrix<N>> {
     for i in 0..N {
         for j in 0..N {
             ans[i][j] = vec_string[i * N + j].parse::<u64>().unwrap();
+            // println!("{}", ans[i][j]);
         }
     }
     Arc::new(ans)

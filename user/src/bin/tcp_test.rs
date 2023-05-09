@@ -16,13 +16,13 @@ enum ModelType {
 }
 
 const BUF_LEN: usize = 2048;
-const MATRIX_SIZE: usize = 10;
+const MATRIX_SIZE: usize = 20;
 
 const CLOSE_CONNECT_STR: &str = "close connection";
 
 static MAX_POLL_THREADS: usize = 3;
-static MODEL_TYPE: ModelType = ModelType::Coroutine;
-static CONNECTION_NUM: usize = 32;
+static MODEL_TYPE: ModelType = ModelType::Thread;
+static CONNECTION_NUM: usize = 128;
 
 static mut REQ_MAP: Vec<Mutex<VecDeque<String>>> = Vec::new();
 static mut RSP_MAP: Vec<Mutex<VecDeque<String>>> = Vec::new();
@@ -49,7 +49,7 @@ fn init_connection() {
 }
 
 fn handle_tcp_client(client_fd: usize) -> bool {
-    println!("start tcp_client");
+    // println!("start tcp_client");
     let str = "connect ok";
     let mut begin_buf = vec![0u8; BUF_LEN];
     read!(client_fd as usize, &mut begin_buf);
@@ -61,7 +61,7 @@ fn handle_tcp_client(client_fd: usize) -> bool {
         .take_while(|&&b| b != 0)
         .map(|&b| b as char)
         .collect();
-        
+        println!("recv: {}", recv_str);
         get_req_queue(client_fd).lock().push_back(recv_str.clone());
         if recv_str == CLOSE_CONNECT_STR {
             break;
@@ -76,15 +76,18 @@ fn matrix_calc(client_fd: usize) {
         if let Some(req) = get_req_queue(client_fd).lock().pop_front() {
             let rsp;
             if req != CLOSE_CONNECT_STR {
+                println!("test1");
                 let matrix = string_to_matrix::<MATRIX_SIZE>(&req);
+                println!("test2");
                 let ans = matrix_multiply(matrix.clone(), matrix.clone());
+                println!("test3");
                 rsp = matrix_to_string(ans);
+                println!("test4");
             } else {
                 rsp = CLOSE_CONNECT_STR.to_string();
             }
             get_rsp_queue(client_fd).lock().push_back(rsp);
             if req == CLOSE_CONNECT_STR {
-                println!("[matrix_calc] break");
                 break;
             }
         } else {
@@ -99,7 +102,7 @@ fn send_rsp(client_fd: usize) {
         if let Some(rsp) = get_rsp_queue(client_fd).lock().pop_front() {
             if rsp == CLOSE_CONNECT_STR {
                 println!("[send_rsp] break");
-                println!("close socket fd: {}", client_fd);
+                // println!("close socket fd: {}", client_fd);
                 close(client_fd);
                 break;
             }
@@ -113,7 +116,7 @@ fn send_rsp(client_fd: usize) {
 
 
 async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
-    println!("start tcp_client");
+    // println!("start tcp_client");
     let str = "connect ok";
     let mut begin_buf = vec![0u8; BUF_LEN];
     read!(client_fd as usize, &mut begin_buf, 0, current_cid());
@@ -131,7 +134,7 @@ async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
         re_back(matrix_calc_cid);
 
         if recv_str == CLOSE_CONNECT_STR {
-            println!("[handle_tcp_client_async] break");
+            // println!("[handle_tcp_client_async] break");
             break;
         }
     }
@@ -156,7 +159,7 @@ async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize) {
             re_back(send_rsp_cid);
 
             if req == CLOSE_CONNECT_STR {
-                println!("[matrix_calc] break");
+                // println!("[matrix_calc] break");
                 break;
             }
 
@@ -173,8 +176,8 @@ async fn send_rsp_async(client_fd: usize) {
         let mut rsp_queue = get_rsp_queue(client_fd).lock();
         if let Some(rsp) = rsp_queue.pop_front() {
             if rsp == CLOSE_CONNECT_STR {
-                println!("[send_rsp] break");
-                println!("close socket fd: {}", client_fd);
+                // println!("[send_rsp] break");
+                // println!("close socket fd: {}", client_fd);
                 close(client_fd);
                 break;
             }
@@ -232,7 +235,7 @@ pub fn main() -> i32 {
         waittid(*tid);
     }
 
-    println!("finish tcp test");
+    // println!("finish tcp test");
     0
 }
 
