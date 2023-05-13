@@ -1,10 +1,9 @@
 import numpy as np
 import sys
 
-result_file = "./result.txt"
-
 def main():
-    test_count = int(sys.argv[1])
+    result_file = sys.argv[1]
+    test_count = int(sys.argv[2])
 
     with open(result_file, 'r') as f:
         content = f.read()
