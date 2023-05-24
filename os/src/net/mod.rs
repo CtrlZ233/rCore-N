@@ -79,6 +79,9 @@ pub fn net_interrupt_handler() {
                         NetDevice.transmit(&reply_packet.build_data());
                         NetDevice.recycle_rx_buffer(buf);
                         return;
+                    } else {
+                        let reply_packet = tcp_packet.ack();
+                        NetDevice.transmit(&reply_packet.build_data());
                     }
         
                     if let Some(socket_index) = get_socket(target, lport, rport) {

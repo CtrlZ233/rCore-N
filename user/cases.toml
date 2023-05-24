@@ -11,4 +11,5 @@ cases = [
     "connect_thread_test",
     "connect_with_prio_test",
     "tcp_test",
+    "tcp_test_with_prio",
 ]

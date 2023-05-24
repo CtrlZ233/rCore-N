@@ -2,7 +2,7 @@ import socket
 import time
 import sched
 import random
-import numpy as np
+import sys
 from threading import Thread, Lock
 
 import threading
@@ -13,10 +13,15 @@ global_num = 0
 lock = Lock()
 
 global_delay = []
+threads = []
 
 local = threading.local()
 
-matrix_size = 10
+result_file = "./result.txt"
+
+matrix_size = 20
+threads_num = 128
+req_freq = 0.1
 
 def get_matrix_string():
     random_numbers = [str(random.randint(0, 99)) for _ in range(matrix_size * matrix_size)]
@@ -37,7 +42,7 @@ def req(tcp_socket):
         except socket.error:
             timeout = True
             print("time out!!")
-            break
+            sys.exit(0)
     
     if not timeout:
         end_time = time.time()
@@ -56,22 +61,22 @@ def loop_monitor(socket):
         merge_local_delay(local.delays)
         return
     s = sched.scheduler(time.time, time.sleep)  # 生成调度器
-    s.enter(0.1, 1, req, (socket,))
+    s.enter(req_freq, 1, req, (socket,))
     s.run()
 
 def connect(index):
     local.delays = []
     global global_num
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_socket.settimeout(5)
-    time.sleep(0.2 * index)
+    
+    time.sleep(0.1 * index)
     server_addr = ("127.0.0.1", 6201)
     tcp_socket.connect(server_addr)
 
     send_data = "connect ok?"
     tcp_socket.send(send_data.encode("utf8"))
     recv_data = tcp_socket.recv(1024)
-
+    tcp_socket.settimeout(50)
     print('recv connect result:', recv_data.decode("utf8"))
     if recv_data.decode("utf8") == "connect ok":
         with lock:
@@ -91,24 +96,22 @@ def merge_local_delay(local_delay):
         global_delay = global_delay + local_delay
 
 def statistic():
+    print("statistic")
     global global_delay
     with lock:
-        array = np.array(global_delay)
-        mean = np.mean(array)
-        variance = np.var(array)
-        print("throughput: ", array.size)
-        print("avg delay: ", mean)
-        print("variance: ", variance)
-       
+        with open(result_file, 'a') as f:
+            for delay in global_delay:
+                f.write(str(delay) + " ")
 
-threads = []
-threads_num = 32
-for i in range(threads_num):
-    t = Thread(target=connect, args=(i,))
-    threads.append(t)
-    t.start()
 
-for i in range(threads_num):
-    threads[i].join()
+def test():
+    for i in range(threads_num):
+        t = Thread(target=connect, args=(i,))
+        threads.append(t)
+        t.start()
 
-statistic()
+    for i in range(threads_num):
+        threads[i].join()
+    statistic()
+
+test()
