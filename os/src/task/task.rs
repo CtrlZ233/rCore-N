@@ -37,6 +37,9 @@ pub struct TaskControlBlockInner {
     pub time_intr_count: usize,
     pub total_cpu_cycle_count: usize,
     pub last_cpu_cycle: usize,
+    pub interrupt_time: usize,
+    pub user_time_us: usize,
+    pub last_user_time_us: usize
 }
 
 impl TaskControlBlockInner {
@@ -119,7 +122,10 @@ impl TaskControlBlock {
                     mail_box: Arc::new(MailBox::new()),
                     time_intr_count: 0,
                     total_cpu_cycle_count: 0,
-                    last_cpu_cycle: 0
+                    last_cpu_cycle: 0,
+                    interrupt_time: 0,
+                    user_time_us: 0,
+                    last_user_time_us: 0,
                 }
             )
         }

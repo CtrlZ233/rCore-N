@@ -20,7 +20,7 @@ local = threading.local()
 result_file = "./result.txt"
 
 matrix_size = 20
-threads_num = 128
+threads_num = 32
 req_freq = 0.1
 
 def get_matrix_string():
@@ -69,7 +69,7 @@ def connect(index):
     global global_num
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    time.sleep(0.1 * index)
+    time.sleep(0.2 * index)
     server_addr = ("127.0.0.1", 6201)
     tcp_socket.connect(server_addr)
 

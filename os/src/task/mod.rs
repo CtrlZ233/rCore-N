@@ -70,8 +70,8 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     let tid = inner.res.as_ref().unwrap().tid;
     // warn!("exit start: {}", tid);
     info!(
-        "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}",
-        task.getpid(), tid, exit_code, inner.time_intr_count, inner.total_cpu_cycle_count
+        "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}, interrupt time: {}, user_cycle: {} us",
+        task.getpid(), tid, exit_code, inner.time_intr_count, inner.total_cpu_cycle_count, inner.interrupt_time, inner.user_time_us
     );
 
     // Change status to Zombie
@@ -108,6 +108,16 @@ pub fn exit_current_and_run_next(exit_code: i32) {
                 initproc_inner.children.push(child.clone());
             }
         }
+
+        if process_inner.user_trap_handler_task != None {
+            let task = process_inner.user_trap_handler_task.clone().unwrap();
+            let mut inner = task.acquire_inner_lock();
+            info!(
+                "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}, interrupt time: {}, user_cycle: {} us",
+                1, 1, 2, inner.time_intr_count, inner.total_cpu_cycle_count, inner.interrupt_time, inner.user_time_us
+            );
+        }
+
         let mut recycle_res = Vec::<TaskUserRes>::new();
         for task in process_inner.tasks.iter().filter(|t| t.is_some()) {
             let task = task.as_ref().unwrap();

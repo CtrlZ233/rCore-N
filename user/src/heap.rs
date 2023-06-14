@@ -11,7 +11,7 @@ pub static mut HEAP: LockedHeap = LockedHeap::empty();
 
 #[no_mangle]
 #[link_section = ".data.executor"]
-pub static mut EXECUTOR: Executor = Executor::new();
+pub static mut EXECUTOR: Executor = Executor::new(false);
 
 // 托管空间 16 KiB
 const MEMORY_SIZE: usize = 1 << 21;

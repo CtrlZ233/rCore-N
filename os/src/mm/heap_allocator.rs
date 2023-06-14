@@ -22,7 +22,7 @@ pub static mut HEAP: LockedHeap = LockedHeap::empty();
 
 #[no_mangle]
 #[link_section = ".data.executor"]
-pub static mut EXECUTOR: Executor = Executor::new();
+pub static mut EXECUTOR: Executor = Executor::new(true);
 
 #[no_mangle]
 #[link_section = ".bss.memory"]
