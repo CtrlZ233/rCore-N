@@ -25,7 +25,7 @@ const CLOSE_CONNECT_STR: &str = "close connection";
 
 static MAX_POLL_THREADS: usize = 3;
 static MODEL_TYPE: ModelType = ModelType::Thread;
-static CONNECTION_NUM: usize = 32;
+static CONNECTION_NUM: usize = 64;
 
 static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();
 static mut REQ_MAP_MUTEX: Vec<usize> = Vec::new();
@@ -100,20 +100,20 @@ fn matrix_calc(client_fd: usize) {
                 mutex_unlock(REQ_MAP_MUTEX[client_fd]);
                 let rsp;
                 if req != CLOSE_CONNECT_STR {
-                    println!("test1");
+                    // println!("test1");
                     let matrix = string_to_matrix::<MATRIX_SIZE>(&req);
-                    println!("test2");
+                    // println!("test2");
                     let ans = matrix_multiply(matrix.clone(), matrix.clone());
-                    println!("test3");
+                    // println!("test3");
                     rsp = matrix_to_string(ans);
-                    println!("test4");
+                    // println!("test4");
                 } else {
                     rsp = CLOSE_CONNECT_STR.to_string();
                 }
                 // get_rsp_queue(client_fd).lock().push_back(rsp);
-                println!("[matrix_calc]get mutex: {}", client_fd);
+                // println!("[matrix_calc]get mutex: {}", client_fd);
                 mutex_lock(RSP_MAP_MUTEX[client_fd]);
-                println!("[matrix_calc]get mutex success: {}", client_fd);
+                // println!("[matrix_calc]get mutex success: {}", client_fd);
                 let mut rsp_queue = &mut RSP_MAP[client_fd];
                 rsp_queue.push_back(rsp);
                 mutex_unlock(RSP_MAP_MUTEX[client_fd]);

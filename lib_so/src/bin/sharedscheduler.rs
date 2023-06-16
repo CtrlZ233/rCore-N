@@ -18,7 +18,8 @@ use core::pin::Pin;
 use core::future::Future;
 use syscall::*;
 use core::task::Poll;
-use buddy_system_allocator::LockedHeap;
+use buddy_system_allocator::Heap;
+type LockedHeap = Mutex<Heap>;
 
 
 // 自定义的模块接口，模块添加进地址空间之后，需要执行 _start() 函数填充这个接口表

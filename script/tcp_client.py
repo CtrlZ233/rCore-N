@@ -20,7 +20,7 @@ local = threading.local()
 result_file = "./result.txt"
 
 matrix_size = 20
-threads_num = 32
+threads_num = 64
 req_freq = 0.1
 
 def get_matrix_string():
