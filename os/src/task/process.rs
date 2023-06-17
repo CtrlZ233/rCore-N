@@ -2,6 +2,7 @@ use lib_so::get_symbol_addr;
 use spin::{Mutex, MutexGuard};
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
 use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
+use super::add_user_intr_task;
 use super::pid::RecycleAllocator;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
@@ -10,7 +11,7 @@ use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};
 use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;
-use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
+use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue, UserTrapRecord, UserTrapError};
 use crate::sync::{SimpleMutex, Condvar};
 
 pub struct ProcessControlBlock {
@@ -33,6 +34,7 @@ pub struct ProcessControlBlockInner {
     pub task_res_allocator: RecycleAllocator,
     pub user_trap_handler_tid: usize,
     pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
+    pub user_trap_info_cache: Vec<UserTrapRecord>,
     pub mutex_list: Vec<Option<Arc<dyn SimpleMutex>>>,
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
 }
@@ -125,6 +127,20 @@ impl ProcessControlBlockInner {
             }
         }
     }
+
+    pub fn push_user_trap_record(&mut self, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
+        let mut res = Err(UserTrapError::TaskNotFound);
+        if let Some(trap_info) = &mut self.user_trap_info {
+            if let Some(task) = self.user_trap_handler_task.take() {
+                res = trap_info.push_trap_record(trap_record);
+                add_task(task);
+            } else {
+                self.user_trap_info_cache.push(trap_record);
+                res = Err(UserTrapError::TrapThreadBusy);
+            }
+        }
+        res
+    }
 }
 
 impl ProcessControlBlock {
@@ -168,6 +184,7 @@ impl ProcessControlBlock {
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
                     user_trap_handler_task: None,
+                    user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
                 }
@@ -281,6 +298,7 @@ impl ProcessControlBlock {
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
                     user_trap_handler_task: None,
+                    user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
                 }

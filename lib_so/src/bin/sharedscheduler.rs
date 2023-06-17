@@ -37,10 +37,10 @@ fn main() -> usize{
         INTERFACE[6] = reprio as usize;
         INTERFACE[7] = add_virtual_core as usize;
         INTERFACE[8] = update_prio as usize;
+        INTERFACE[9] = get_pending_status as usize;
         &INTERFACE as *const [usize; 10] as usize
     }
 }
-
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 #[no_mangle]
@@ -118,11 +118,7 @@ pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, pr
     }
 }
 
-static PRINT_LOCK: Mutex<()> = Mutex::new(());
-static RE_BACK_COUNT: AtomicUsize = AtomicUsize::new(0);
-static RE_BACK_COST_TIME: AtomicUsize = AtomicUsize::new(0);
 
-static USER_POLL_COST: AtomicUsize = AtomicUsize::new(0);
 /// 用户程序执行协程
 #[no_mangle]
 #[inline(never)]
@@ -132,7 +128,6 @@ pub fn poll_user_future() {
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         let pid = getpid() as usize;
         let tid = gettid();
-        let mut yield_count = 0;
         loop {
             if (*exe).is_empty() {
                 // println!("ex is empty");
@@ -158,7 +153,6 @@ pub fn poll_user_future() {
                     }
                 }
                 _ => {
-                    yield_count += 1;
                     // 任务队列不为空，但就绪队列为空，等待任务唤醒
                     yield_();
                 }
@@ -169,20 +163,8 @@ pub fn poll_user_future() {
                 yield_();
             }
         }
-        {
-            let _lock = PRINT_LOCK.lock();
-            println!("poll thread {} yield count: {}", tid, yield_count);
-        }
         if tid != 0 {
             exit(2);
-        } else {
-            let _lock = PRINT_LOCK.lock();
-            let time = RE_BACK_COUNT.load(Ordering::SeqCst);
-            let cost: usize = RE_BACK_COST_TIME.load(Ordering::SeqCst);
-            if time != 0 {
-                println!("re_back time: {}, re_back_cost_avg: {}", time, cost / time);
-            }
-            
         }
     }
 }
@@ -253,44 +235,27 @@ pub fn current_cid(is_kernel: bool) -> usize {
 pub fn re_back(cid: usize, pid: usize) {
     // println!("[Exec]re back func enter");
     let mut start = 0;
-    if pid != 0 {
-        RE_BACK_COUNT.fetch_add(1, Ordering::SeqCst);
-        start = get_time_us();
-    }
-    
     
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        if pid != 0 {
-            if !(*exe).is_pending(cid) {
-                let cost = get_time_us() -  start;
-                // println!("start: {}, cost: {}", start, cost);
-                RE_BACK_COST_TIME.fetch_add(cost as usize, Ordering::SeqCst);
-                return;
-            }
-            let prio = (*exe).re_back(CoroutineId(cid));
-            // 重新入队之后，需要检查优先级
-            let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
-            if prio < process_prio {
-                PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
-            }
-            let cost = get_time_us() -  start;
-            // println!("start: {}, cost: {}", start, cost);
-            RE_BACK_COST_TIME.fetch_add(cost as usize, Ordering::SeqCst);
-        } else {
-            if !(*exe).is_pending(cid) {
-                return;
-            }
-            let prio = (*exe).re_back(CoroutineId(cid));
-            // 重新入队之后，需要检查优先级
-            let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
-            if prio < process_prio {
-                PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
-            }
+        let prio = (*exe).re_back(CoroutineId(cid));
+        // 重新入队之后，需要检查优先级
+        let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
+        if prio < process_prio {
+            PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
         }
     }
-    
+}
+
+#[no_mangle]
+#[inline(never)]
+pub fn get_pending_status(cid: usize) -> bool {
+    unsafe {
+        let heapptr = *(HEAP_BUFFER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        return (*exe).is_pending(cid)
+    }
 }
 
 /// 更新协程优先级

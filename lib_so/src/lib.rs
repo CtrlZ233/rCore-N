@@ -90,4 +90,8 @@ get_libfn!(
     pub fn update_prio(pid: usize, prio: usize) {}
 );
 
+get_libfn!(
+  pub fn get_pending_status(cid: usize) -> bool {}
+);
+
 

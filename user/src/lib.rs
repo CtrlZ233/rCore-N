@@ -66,6 +66,10 @@ pub fn spawn<F, T>(f: F, prio: usize) -> usize
     lib_so::spawn(f, prio, sys_get_pid() as usize + 1, lib_so::CoroutineKind::UserNorm)
 }
 
+pub fn get_pending_status(cid: usize) -> bool {
+    lib_so::get_pending_status(cid)
+}
+
 pub struct AwaitHelper {
     flag: bool,
 }

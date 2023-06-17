@@ -143,9 +143,10 @@ impl Drop for TCP {
 async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize) {
     let mut helper = Box::new(ReadHelper::new());
     let socket = get_mutex_socket(socket_index).unwrap();
-    
+    // info!("async read!: {}", socket_index);
     loop {
         let mut mutex_socket = socket.lock();
+        // info!("async get lock!: {}", socket_index);
         if let Some(data) = mutex_socket.buffers.pop_front() {
             drop(mutex_socket);
             let data_len = data.len();
@@ -163,14 +164,15 @@ async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: us
             }
             break;
         } else {
-            debug!("suspend current coroutine!");
+            // info!("suspend current coroutine!: {}", socket_index);
             ASYNC_RDMP.lock().insert(socket_index, lib_so::current_cid(true));
             drop(mutex_socket);
             // suspend_current_and_run_next();
             helper.as_mut().await;
         }
     }
-
+    // info!("wake: {}", cid);
+    
     let _ = push_trap_record(pid, UserTrapRecord {
         cause: 1,
         message: cid,

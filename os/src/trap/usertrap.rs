@@ -34,6 +34,7 @@ pub enum UserTrapError {
     TaskNotFound,
     TrapUninitialized,
     TrapBufferFull,
+    TrapThreadBusy,
 }
 
 impl UserTrapInfo {
@@ -132,25 +133,28 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
             // warn!("[push trap record] User trap disabled!");
             // return Err(UserTrapError::TrapDisabled);
         }
-        if let Some(trap_info) = &mut pcb_inner.user_trap_info {
-            let res = trap_info.push_trap_record(trap_record);
-            let mut task = None;
-            if pcb_inner.user_trap_handler_task.is_some() {
-                task = pcb_inner.user_trap_handler_task.take();
-            }
-            drop(pcb_inner);
-            if task.is_some() {
-                add_task(task.unwrap());
-                add_user_intr_task(pid);
-                debug!("wake handler task");
-            }
-            push_trace(PUSH_TRAP_RECORD_EXIT);
-            res
-        } else {
-            warn!("[push trap record] User trap uninitialized!");
-            push_trace(PUSH_TRAP_RECORD_EXIT);
-            Err(UserTrapError::TrapUninitialized)
-        }
+        // if let Some(trap_info) = &mut pcb_inner.user_trap_info {
+        //     let mut res;
+        //     let mut task = None;
+        //     if pcb_inner.user_trap_handler_task.is_some() {
+        //         task = pcb_inner.user_trap_handler_task.take();
+        //     }
+        //     drop(pcb_inner);
+        //     if task.is_some() {
+        //         res = trap_info.push_trap_record(trap_record);
+        //         add_task(task.unwrap());
+        //         add_user_intr_task(pid);
+        //         debug!("wake handler task");
+        //     }
+        //     push_trace(PUSH_TRAP_RECORD_EXIT);
+        //     res
+        // } else {
+        //     warn!("[push trap record] User trap uninitialized!");
+        //     push_trace(PUSH_TRAP_RECORD_EXIT);
+        //     Err(UserTrapError::TrapUninitialized)
+        // }
+        add_user_intr_task(pid);
+        pcb_inner.push_user_trap_record(trap_record)
     } else {
         warn!("[push trap record] Task Not Found!");
         push_trace(PUSH_TRAP_RECORD_EXIT);

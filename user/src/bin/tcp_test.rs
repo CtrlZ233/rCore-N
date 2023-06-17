@@ -24,8 +24,8 @@ const MATRIX_SIZE: usize = 20;
 const CLOSE_CONNECT_STR: &str = "close connection";
 
 static MAX_POLL_THREADS: usize = 3;
-static MODEL_TYPE: ModelType = ModelType::Thread;
-static CONNECTION_NUM: usize = 64;
+static MODEL_TYPE: ModelType = ModelType::Coroutine;
+static CONNECTION_NUM: usize = 128;
 
 static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();
 static mut REQ_MAP_MUTEX: Vec<usize> = Vec::new();
@@ -159,31 +159,29 @@ fn send_rsp(client_fd: usize) {
 
 async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
     // println!("start tcp_client");
-    let str = "connect ok";
+    let str: &str = "connect ok";
+    let current_cid = current_cid();
     let mut begin_buf = vec![0u8; BUF_LEN];
-    read!(client_fd as usize, &mut begin_buf, 0, current_cid());
+    read!(client_fd as usize, &mut begin_buf, 0, current_cid);
     syscall::write!(client_fd, str.as_bytes());
     loop {
         let mut buf = vec![0u8; BUF_LEN];
-        read!(client_fd as usize, &mut buf, 0, current_cid());
+        read!(client_fd as usize, &mut buf, 0, current_cid);
         let recv_str: String = buf.iter()
         .take_while(|&&b| b != 0)
         .map(|&b| b as char)
         .collect();
-        // unsafe {
-        //     TIMER_QUEUE[client_fd].lock().push_back(get_time_us() as usize);
-        // }
         unsafe {
             mutex_lock(REQ_MAP_MUTEX[client_fd]);
             let mut req_queue = &mut REQ_MAP[client_fd];
             req_queue.push_back(recv_str.clone());
             mutex_unlock(REQ_MAP_MUTEX[client_fd]);
         }
+        if get_pending_status(matrix_calc_cid) {
+            re_back(matrix_calc_cid);
+        }
         
-        re_back(matrix_calc_cid);
-
         if recv_str == CLOSE_CONNECT_STR {
-            // println!("[handle_tcp_client_async] break");
             break;
         }
     }
@@ -210,11 +208,11 @@ async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize) {
                 rsp_queue.push_back(rsp);
                 mutex_unlock(RSP_MAP_MUTEX[client_fd]);
                 
+                if get_pending_status(send_rsp_cid) {
+                    re_back(send_rsp_cid);
+                }
                 
-                re_back(send_rsp_cid);
-
                 if req == CLOSE_CONNECT_STR {
-                    // println!("[matrix_calc] break");
                     break;
                 }
 
@@ -300,7 +298,7 @@ pub fn main() -> i32 {
         waittid(*tid);
     }
 
-    // println!("finish tcp test");
+    println!("finish tcp test");
     0
 }
 
@@ -310,5 +308,6 @@ pub fn wake_handler(cid: usize) {
     unsafe {
         USER_THREAD_ACTIVE += 1;
     }
+    // println!("reback: {}", cid);
     re_back(cid);
 }

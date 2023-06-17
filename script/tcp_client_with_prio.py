@@ -73,7 +73,7 @@ def connect(index):
     global global_num
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    time.sleep(0.1 * index)
+    time.sleep(0.2 * index)
     server_addr = ("127.0.0.1", 6201)
     tcp_socket.connect(server_addr)
 
