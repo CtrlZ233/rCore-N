@@ -47,13 +47,20 @@ pub fn sys_hang() -> isize {
     let process = task.process.upgrade().unwrap();
     let mut process_inner = process.acquire_inner_lock();
     let pid = process.pid.0;
-    if process_inner.user_trap_info.is_some() && process_inner.user_trap_info.as_ref().unwrap().get_trap_queue().is_empty() {
+    if process_inner.user_trap_info.is_some() && process_inner.user_trap_info.as_ref().unwrap().get_trap_queue().is_empty()
+        && process_inner.user_trap_info_cache.is_empty() {
+
         process_inner.user_trap_handler_task = Some(task);
         drop(process_inner);
         drop(process);
         remove_uintr_task(pid);
         block_current_and_run_next();
-    } else {
+    } else if !process_inner.user_trap_info_cache.is_empty() {
+        while !process_inner.user_trap_info_cache.is_empty() {
+            let record = process_inner.user_trap_info_cache.pop().unwrap();
+            process_inner.user_trap_info.as_mut().unwrap().push_trap_record(record);
+        }
+
         drop(process_inner);
         drop(process);
         suspend_current_and_run_next();

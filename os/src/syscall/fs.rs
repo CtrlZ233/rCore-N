@@ -68,6 +68,7 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -
     let process = current_process().unwrap();
     let pid = process.pid.0;
     let inner = process.acquire_inner_lock();
+    // info!("test1: {}", fd);
     if fd >= inner.fd_table.len() {
         return -1;
     }
@@ -85,8 +86,10 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -
                 -3
             }
         } else {
+            // info!("test2: {}", fd);
             let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
             lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
+            // info!("test3: {}", fd);
             0
         }
     } else {

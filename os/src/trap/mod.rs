@@ -16,6 +16,8 @@ use riscv::register::{
     sepc, sideleg, sie, sip, sstatus, stval, stvec,
 };
 
+use riscv::register::cycle;
+
 global_asm!(include_str!("trap.asm"));
 
 pub fn init() {
@@ -54,7 +56,10 @@ pub fn trap_handler() -> ! {
     let scause = scause::read();
     let stval = stval::read();
     push_trace(S_TRAP_HANDLER + scause.bits());
-
+    let task = current_task().unwrap();
+    let mut inner = task.acquire_inner_lock();
+    inner.user_time_us += get_time_us() - inner.last_user_time_us;
+    drop(inner);
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             // jump to next instruction anyway
@@ -139,6 +144,10 @@ pub fn trap_handler() -> ! {
         }
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
             // debug!("Supervisor External");
+            let current_task = current_task().unwrap();
+            let mut inner = current_task.acquire_inner_lock();
+            inner.interrupt_time += 1;
+            drop(inner);
             plic::handle_external_interrupt(hart_id());
         }
         Trap::Interrupt(Interrupt::SupervisorSoft) => {
@@ -158,6 +167,11 @@ pub fn trap_handler() -> ! {
 
 #[no_mangle]
 pub fn trap_return() -> ! {
+    let task = current_task().unwrap();
+    let mut task_inner = task.acquire_inner_lock();
+    task_inner.last_user_time_us = get_time_us();
+    drop(task_inner);
+    drop(task);
     unsafe {
         sstatus::clear_sie();
     }

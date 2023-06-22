@@ -8,7 +8,7 @@ use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
 use lib_so::Executor;
 use spin::Mutex;
 use crate::config::KERNEL_HEAP_SIZE;
-use buddy_system_allocator::LockedHeap;
+use buddy_system_allocator::Heap;
 
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
@@ -18,11 +18,11 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
 #[no_mangle]
 #[link_section = ".data.heap"]
-pub static mut HEAP: LockedHeap = LockedHeap::empty();
+pub static mut HEAP: Mutex<Heap> = Mutex::new(Heap::empty());
 
 #[no_mangle]
 #[link_section = ".data.executor"]
-pub static mut EXECUTOR: Executor = Executor::new();
+pub static mut EXECUTOR: Executor = Executor::new(true);
 
 #[no_mangle]
 #[link_section = ".bss.memory"]
@@ -58,12 +58,13 @@ static GLOBAL: Global = Global;
 unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        HEAP.alloc(layout)
+        HEAP.lock().alloc(layout).ok()
+        .map_or(0 as *mut u8, |allocation| allocation.as_ptr())
     }
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        HEAP.dealloc(ptr, layout)
+        HEAP.lock().dealloc(NonNull::new_unchecked(ptr), layout)
     }
 }
 

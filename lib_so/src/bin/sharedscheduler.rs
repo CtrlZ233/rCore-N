@@ -9,6 +9,7 @@ extern crate lib_so;
 extern crate alloc;
 
 use lib_so::config::{ENTRY, MAX_THREAD_NUM, MAX_PROC_NUM, HEAP_BUFFER};
+use spin::Mutex;
 use core::sync::atomic::Ordering;
 use core::sync::atomic::AtomicUsize;
 use lib_so::{Executor, CoroutineId, CoroutineKind};
@@ -17,7 +18,8 @@ use core::pin::Pin;
 use core::future::Future;
 use syscall::*;
 use core::task::Poll;
-use buddy_system_allocator::LockedHeap;
+use buddy_system_allocator::Heap;
+type LockedHeap = Mutex<Heap>;
 
 
 // 自定义的模块接口，模块添加进地址空间之后，需要执行 _start() 函数填充这个接口表
@@ -35,10 +37,10 @@ fn main() -> usize{
         INTERFACE[6] = reprio as usize;
         INTERFACE[7] = add_virtual_core as usize;
         INTERFACE[8] = update_prio as usize;
+        INTERFACE[9] = get_pending_status as usize;
         &INTERFACE as *const [usize; 10] as usize
     }
 }
-
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 #[no_mangle]
@@ -115,6 +117,8 @@ pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, pr
         return cid;
     }
 }
+
+
 /// 用户程序执行协程
 #[no_mangle]
 #[inline(never)]
@@ -144,7 +148,7 @@ pub fn poll_user_future() {
                     };
                     {
                         let _lock = (*exe).wr_lock.lock();
-                        let prio = (*exe).priority;
+                        let prio: usize = (*exe).priority;
                         update_prio(getpid() as usize + 1, prio);
                     }
                 }
@@ -230,18 +234,27 @@ pub fn current_cid(is_kernel: bool) -> usize {
 #[inline(never)]
 pub fn re_back(cid: usize, pid: usize) {
     // println!("[Exec]re back func enter");
+    let mut start = 0;
+    
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        if !(*exe).is_pending(cid) {
-            return;
-        }
         let prio = (*exe).re_back(CoroutineId(cid));
         // 重新入队之后，需要检查优先级
         let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
         if prio < process_prio {
             PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
         }
+    }
+}
+
+#[no_mangle]
+#[inline(never)]
+pub fn get_pending_status(cid: usize) -> bool {
+    unsafe {
+        let heapptr = *(HEAP_BUFFER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        return (*exe).is_pending(cid)
     }
 }
 

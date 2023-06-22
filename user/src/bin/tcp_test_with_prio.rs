@@ -15,56 +15,54 @@ const MATRIX_SIZE: usize = 20;
 
 const CLOSE_CONNECT_STR: &str = "close connection";
 
-static MAX_POLL_THREADS: usize = 1 - 1;
+static MAX_POLL_THREADS: usize = 4 - 1;
 
 const SERVER_USE_PRIO: usize = 8;
 const CONNECTION_NUM: usize = SERVER_USE_PRIO * 16;
 
 
-static mut REQ_MAP: Vec<Mutex<VecDeque<String>>> = Vec::new();
-static mut RSP_MAP: Vec<Mutex<VecDeque<String>>> = Vec::new();
+static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();
+static mut REQ_MAP_MUTEX: Vec<usize> = Vec::new();
+static mut RSP_MAP: Vec<VecDeque<String>> = Vec::new();
+static mut RSP_MAP_MUTEX: Vec<usize> = Vec::new();
 
-fn get_req_queue(client_fd: usize) -> &'static Mutex<VecDeque<String>> {
-    unsafe {
-        &REQ_MAP[client_fd]
-    }
-}
-
-fn get_rsp_queue(client_fd: usize) -> &'static Mutex<VecDeque<String>> {
-    unsafe {
-        &RSP_MAP[client_fd]
-    }
-}
 
 fn init_connection() {
     for _ in 0..(CONNECTION_NUM + 10) {
         unsafe {
-            REQ_MAP.push(Mutex::new(VecDeque::new()));
-            RSP_MAP.push(Mutex::new(VecDeque::new()));
+            REQ_MAP.push(VecDeque::new());
+            REQ_MAP_MUTEX.push(mutex_blocking_create() as usize);
+            RSP_MAP.push(VecDeque::new());
+            RSP_MAP_MUTEX.push(mutex_blocking_create() as usize);
         }
     }
 }
 
 async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
     // println!("start tcp_client");
-    let str = "connect ok";
+    let str: &str = "connect ok";
+    let current_cid = current_cid();
     let mut begin_buf = vec![0u8; BUF_LEN];
-    read!(client_fd as usize, &mut begin_buf, 0, current_cid());
+    read!(client_fd as usize, &mut begin_buf, 0, current_cid);
     syscall::write!(client_fd, str.as_bytes());
     loop {
         let mut buf = vec![0u8; BUF_LEN];
-        read!(client_fd as usize, &mut buf, 0, current_cid());
+        read!(client_fd as usize, &mut buf, 0, current_cid);
         let recv_str: String = buf.iter()
         .take_while(|&&b| b != 0)
         .map(|&b| b as char)
         .collect();
+        unsafe {
+            mutex_lock(REQ_MAP_MUTEX[client_fd]);
+            let mut req_queue = &mut REQ_MAP[client_fd];
+            req_queue.push_back(recv_str.clone());
+            mutex_unlock(REQ_MAP_MUTEX[client_fd]);
+        }
+        if get_pending_status(matrix_calc_cid) {
+            re_back(matrix_calc_cid);
+        }
         
-        let mut req_queue = get_req_queue(client_fd).lock();
-        req_queue.push_back(recv_str.clone());
-        re_back(matrix_calc_cid);
-
         if recv_str == CLOSE_CONNECT_STR {
-            // println!("[handle_tcp_client_async] break");
             break;
         }
     }
@@ -72,52 +70,64 @@ async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
 
 async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize) {
     loop {
-        let mut req_queue = get_req_queue(client_fd).lock();
-        if let Some(req) = req_queue.pop_front() {
-            let mut rsp;
-            if req != CLOSE_CONNECT_STR {
-                drop(req_queue);
-                let matrix = string_to_matrix::<MATRIX_SIZE>(&req);
-                let ans = matrix_multiply(matrix.clone(), matrix.clone());
-                rsp = matrix_to_string(ans);
+        unsafe {
+            mutex_lock(REQ_MAP_MUTEX[client_fd]);
+            let mut req_queue = &mut REQ_MAP[client_fd];
+            if let Some(req) = req_queue.pop_front() {
+                mutex_unlock(REQ_MAP_MUTEX[client_fd]);
+                let mut rsp;
+                if req != CLOSE_CONNECT_STR {
+                    let matrix = string_to_matrix::<MATRIX_SIZE>(&req);
+                    let ans = matrix_multiply(matrix.clone(), matrix.clone());
+                    rsp = matrix_to_string(ans);
+                } else {
+                    rsp = CLOSE_CONNECT_STR.to_string();
+                }
+                
+                mutex_lock(RSP_MAP_MUTEX[client_fd]);
+                let mut rsp_queue = &mut RSP_MAP[client_fd];
+                rsp_queue.push_back(rsp);
+                mutex_unlock(RSP_MAP_MUTEX[client_fd]);
+                
+                if get_pending_status(send_rsp_cid) {
+                    re_back(send_rsp_cid);
+                }
+                
+                if req == CLOSE_CONNECT_STR {
+                    break;
+                }
+
             } else {
-                rsp = CLOSE_CONNECT_STR.to_string();
+                mutex_unlock(REQ_MAP_MUTEX[client_fd]);
+                let mut helper = Box::new(AwaitHelper::new());
+                helper.as_mut().await;
             }
-
-            let mut rsp_queue = get_rsp_queue(client_fd).lock();
-            rsp_queue.push_back(rsp);
-            re_back(send_rsp_cid);
-
-            if req == CLOSE_CONNECT_STR {
-                // println!("[matrix_calc] break");
-                break;
-            }
-
-        } else {
-            drop(req_queue);
-            let mut helper = Box::new(AwaitHelper::new());
-            helper.as_mut().await;
         }
     }
 }
 
 async fn send_rsp_async(client_fd: usize) {
     loop {
-        let mut rsp_queue = get_rsp_queue(client_fd).lock();
-        if let Some(rsp) = rsp_queue.pop_front() {
-            if rsp == CLOSE_CONNECT_STR {
-                // println!("[send_rsp] break");
-                // println!("close socket fd: {}", client_fd);
-                close(client_fd);
-                break;
+        unsafe {
+            mutex_lock(RSP_MAP_MUTEX[client_fd]);
+            let mut rsp_queue = &mut RSP_MAP[client_fd];
+            if let Some(rsp) = rsp_queue.pop_front() {
+                mutex_unlock(RSP_MAP_MUTEX[client_fd]);
+                if rsp == CLOSE_CONNECT_STR {
+                    // println!("[send_rsp] break");
+                    // println!("close socket fd: {}", client_fd);
+                    close(client_fd);
+                    break;
+                }
+                
+                syscall::write!(client_fd, rsp.as_bytes());
+            } else {
+                mutex_unlock(RSP_MAP_MUTEX[client_fd]);
+                let mut helper = Box::new(AwaitHelper::new());
+                helper.as_mut().await;
             }
-            drop(rsp_queue);
-            syscall::write!(client_fd, rsp.as_bytes());
-        } else {
-            drop(rsp_queue);
-            let mut helper = Box::new(AwaitHelper::new());
-            helper.as_mut().await;
         }
+        
     }
 }
 

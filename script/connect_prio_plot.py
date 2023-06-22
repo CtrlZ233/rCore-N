@@ -10,7 +10,7 @@ def get_array(file_path):
     array = [float(i) for i in line]
     # array.sort()
     # print(array)
-    array = [x for x in array if x < 60000]
+    array = [x for x in array if x < 50000]
     array = DataFrame({"delay": array})
     return array
 

@@ -1,17 +1,18 @@
 use alloc::{vec, collections::VecDeque};
+use syscall::yield_;
 use core::{
-    alloc::{GlobalAlloc, Layout},
+    alloc::{GlobalAlloc, Layout}, ptr::NonNull,
 };
 use lib_so::Executor;
-use buddy_system_allocator::LockedHeap;
-
+use buddy_system_allocator::Heap;
+use spin::Mutex;
 #[no_mangle]
 #[link_section = ".data.heap"]
-pub static mut HEAP: LockedHeap = LockedHeap::empty();
+pub static mut HEAP: Mutex<Heap> = Mutex::new(Heap::empty());
 
 #[no_mangle]
 #[link_section = ".data.executor"]
-pub static mut EXECUTOR: Executor = Executor::new();
+pub static mut EXECUTOR: Executor = Executor::new(false);
 
 // 托管空间 16 KiB
 const MEMORY_SIZE: usize = 1 << 21;
@@ -48,12 +49,27 @@ static GLOBAL: Global = Global;
 unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        HEAP.alloc(layout)
+        while true {
+            let op_heap = HEAP.try_lock();
+            if op_heap.is_some() {
+                return op_heap.unwrap().alloc(layout).ok()
+                .map_or(0 as *mut u8, |allocation| allocation.as_ptr());
+            }
+            yield_();
+        }
+        return 0 as *mut u8;
     }
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        HEAP.dealloc(ptr, layout)
+        while true {
+            let op_heap = HEAP.try_lock();
+            if op_heap.is_some() {
+                op_heap.unwrap().dealloc(NonNull::new_unchecked(ptr), layout);
+                return;
+            }
+            yield_();
+        }
     }
 }
 
